@@ -54,6 +54,15 @@ export class QueueService implements OnModuleDestroy {
     await this.queue('ingest').add('process-run', { runId });
   }
 
+  /** A verified webhook delivery, processed off the request path. */
+  async enqueueGithubEvent(job: {
+    event: string;
+    deliveryId: string;
+    payload: unknown;
+  }): Promise<void> {
+    await this.queue('github').add(job.event, job);
+  }
+
   async onModuleDestroy(): Promise<void> {
     for (const queue of this.queues.values()) await queue.close();
     this.connection.disconnect();

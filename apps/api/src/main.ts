@@ -20,7 +20,9 @@ export async function createApp(): Promise<NestFastifyApplication> {
     // Not `logger: false`: Nest reports framework-level startup problems
     // through this logger, and silencing it turns a missing optional peer
     // dependency into a process that exits 1 with no output at all.
-    { logger: ['error', 'warn'] },
+    // `rawBody` keeps the bytes GitHub signed, for the webhook receiver: a
+    // re-serialized JSON body would not match the signature.
+    { logger: ['error', 'warn'], rawBody: true },
   );
 
   await app.register(helmet, { contentSecurityPolicy: false });

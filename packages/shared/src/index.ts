@@ -7,3 +7,4 @@ export * from './schemas/common.js';
 export * from './schemas/identity.js';
 export * from './schemas/organization.js';
 export * from './schemas/project.js';
+export * from './schemas/github.js';

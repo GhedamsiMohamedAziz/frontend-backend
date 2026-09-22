@@ -4,6 +4,7 @@ import { AccessModule } from './access/access.module';
 import { AuthGuard } from './auth/auth.guard';
 import { AuthModule } from './auth/auth.module';
 import { DatabaseModule } from './database/database.module';
+import { GitHubModule } from './github/github.module';
 import { HealthController } from './health/health.controller';
 import { IngestModule } from './ingest/ingest.module';
 import { OrganizationsController } from './organizations/organizations.controller';
@@ -13,7 +14,7 @@ import { RunsController } from './runs/runs.controller';
 import { MeController } from './users/me.controller';
 
 @Module({
-  imports: [DatabaseModule, AuthModule, AccessModule, IngestModule, RealtimeModule],
+  imports: [DatabaseModule, AuthModule, AccessModule, IngestModule, RealtimeModule, GitHubModule],
   controllers: [
     HealthController,
     MeController,

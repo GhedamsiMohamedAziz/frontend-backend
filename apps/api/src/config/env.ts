@@ -31,6 +31,14 @@ const envSchema = z.object({
   GITHUB_OAUTH_CLIENT_ID: z.string().optional(),
   GITHUB_OAUTH_CLIENT_SECRET: z.string().optional(),
 
+  // GitHub App (ADR-011). All optional: without them the back-office routes
+  // answer 503 `github_not_configured` and everything else keeps working.
+  GITHUB_APP_ID: z.string().optional(),
+  GITHUB_APP_SLUG: z.string().optional(),
+  GITHUB_APP_PRIVATE_KEY: z.string().optional(),
+  GITHUB_WEBHOOK_SECRET: z.string().optional(),
+  GITHUB_API_URL: z.string().url().default('https://api.github.com'),
+
   API_URL: z.string().url().default('http://localhost:4000'),
   WEB_URL: z.string().url().default('http://localhost:3000'),
 

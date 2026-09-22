@@ -19,7 +19,7 @@ export const RequireCapability = (capability: Capability): MethodDecorator =>
   SetMetadata(REQUIRED_CAPABILITY, capability);
 
 /** Declare the organization role a route needs, for org-level administration. */
-export const RequireOrgRole = (role: OrgRole): MethodDecorator =>
+export const RequireOrgRole = (role: OrgRole): MethodDecorator & ClassDecorator =>
   SetMetadata(REQUIRED_ORG_ROLE, role);
 
 const ORG_ROLE_RANK: Record<OrgRole, number> = { member: 0, admin: 1, owner: 2 };

@@ -6,6 +6,7 @@ import { logger } from './logger';
 import { QUEUE_NAMES, createQueue, createRedis } from './queues';
 import { runMaintenance, type MaintenanceJob } from './jobs/maintenance';
 import { processRun, RunLockedError, type IngestJob } from './jobs/ingest';
+import { processGithubEvent, type GitHubJob } from './jobs/github';
 import { LivePublisher } from './live';
 
 /**
@@ -58,6 +59,21 @@ async function main(): Promise<void> {
     logger.error({ jobId: job?.id, runId: job?.data.runId, err: error }, 'ingest job failed');
   });
 
+  const githubWorker = new Worker<GitHubJob>(
+    QUEUE_NAMES.github,
+    async (job: Job<GitHubJob>) => {
+      await processGithubEvent(system, tenant, job.data);
+    },
+    { connection, concurrency: 4 },
+  );
+
+  githubWorker.on('failed', (job, error) => {
+    logger.error(
+      { jobId: job?.id, event: job?.data.event, deliveryId: job?.data.deliveryId, err: error },
+      'github job failed',
+    );
+  });
+
   const maintenanceWorker = new Worker<MaintenanceJob>(
     QUEUE_NAMES.maintenance,
     async (job: Job<MaintenanceJob>) => {
@@ -104,7 +120,8 @@ async function main(): Promise<void> {
       return;
     }
     if (request.url === '/ready') {
-      const ready = maintenanceWorker.isRunning() && ingestWorker.isRunning();
+      const ready =
+        maintenanceWorker.isRunning() && ingestWorker.isRunning() && githubWorker.isRunning();
       response.writeHead(ready ? 200 : 503, { 'content-type': 'application/json' });
       response.end(JSON.stringify({ status: ready ? 'ready' : 'degraded' }));
       return;
@@ -123,6 +140,7 @@ async function main(): Promise<void> {
     // Close the worker first so in-flight jobs finish before the pools go away;
     // a job killed mid-transaction would have to be retried from scratch.
     await ingestWorker.close();
+    await githubWorker.close();
     await maintenanceWorker.close();
     await maintenanceQueue.close();
     await tenant.close();

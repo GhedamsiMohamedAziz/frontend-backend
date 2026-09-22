@@ -35,6 +35,10 @@ const schema = z.object({
   REDIS_URL: z.string().min(1),
   WORKER_HEALTH_PORT: z.coerce.number().int().default(4100),
   WORKER_CONCURRENCY: z.coerce.number().int().min(1).max(64).default(8),
+  GITHUB_APP_ID: z.string().optional(),
+  GITHUB_APP_PRIVATE_KEY: z.string().optional(),
+  GITHUB_API_URL: z.string().url().default('https://api.github.com'),
+  WEB_URL: z.string().url().default('http://localhost:3000'),
 });
 
 export type WorkerConfig = z.infer<typeof schema>;

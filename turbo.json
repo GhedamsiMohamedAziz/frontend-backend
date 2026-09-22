@@ -14,7 +14,12 @@
     "GITHUB_OAUTH_CLIENT_SECRET",
     "API_URL",
     "WEB_URL",
-    "ALLOW_DEV_LOGIN"
+    "ALLOW_DEV_LOGIN",
+    "GITHUB_APP_ID",
+    "GITHUB_APP_SLUG",
+    "GITHUB_APP_PRIVATE_KEY",
+    "GITHUB_WEBHOOK_SECRET",
+    "GITHUB_API_URL"
   ],
   "tasks": {
     "build": {

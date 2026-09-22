@@ -26,9 +26,14 @@ streaming — plus `runs`, `runs/:runId`, `runs/:runId/failures`,
 resume) and `runs/:runId/cancel`. Ingested batches are processed as they
 arrive rather than only at `complete`.
 
-**Not yet implemented:** rerun and hard cancellation of a CI job, which need the
-GitHub App (M3); metrics endpoints (M4); triage (M5). Everything else below is
-the agreed contract for those milestones.
+**Implemented (M3, in progress):** `/v1/o/:org/github/*` (install URL, link /
+unlink installation, repos, workflows, parsed `workflow_dispatch` inputs) and
+`/v1/webhooks/github` (`installation`, `installation_repositories`,
+`workflow_run`).
+
+**Not yet implemented:** workflow configs, dispatch, schedules, quality gates,
+rerun and hard cancellation (rest of M3); metrics endpoints (M4); triage (M5).
+Everything else below is the agreed contract for those milestones.
 
 ---
 
@@ -182,12 +187,12 @@ an unlabelled decision is worse than no decision for M6.
                                                check_run, installation
 ```
 
-Against the official GitHub docs — to be re-verified at M3, not assumed:
-`workflow_dispatch` accepts **max 10 inputs** and only `branch`/`tag` refs, and
-returns `204` with **no run id**, so we correlate the dispatch to its
-`workflow_run` via the subsequent webhook (matching repo + workflow + ref +
-a marker input we inject). The GitHub App needs `actions:write`,
-`checks:write`, `contents:read`, `issues:write`, `metadata:read`.
+Verified against the official GitHub docs on 2026-09-22: `workflow_dispatch`
+accepts **max 25 inputs** and only `branch`/`tag` refs, and returns **`200`
+with `workflow_run_id`**, so a dispatch creates its Run row directly. The
+GitHub App needs `actions:write`, `checks:write`, `contents:read`,
+`issues:write`, `metadata:read`. Webhook deliveries are verified with
+`X-Hub-Signature-256` over the raw body.
 
 ## Ops
 

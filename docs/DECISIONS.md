@@ -113,9 +113,11 @@ shows the rollup's `updated_at` rather than implying real-time truth.
 gates and must act without a specific user's token. **Decision:** a GitHub App
 with `actions:write`, `checks:write`, `contents:read`, `issues:write`,
 `metadata:read`, installed per organization. User login stays OAuth.
-**Note:** `workflow_dispatch` returns `204` with no run id, so dispatches are
-correlated to their `workflow_run` via webhook. To be re-verified against the
-official docs at M3 rather than assumed.
+**Note (verified 2026-09-22, M3):** the earlier assumption that
+`workflow_dispatch` returns `204` with no run id is outdated. The endpoint
+returns `200` with `workflow_run_id`, `run_url` and `html_url`, and accepts up
+to 25 inputs. Dispatches therefore create their Run row directly; no
+webhook correlation is needed.
 
 ### ADR-012 — `test_result` is partitioned from day one
 
@@ -253,3 +255,29 @@ that cannot do anything is worse than no button. **Consequence:** a reporter
 batch can be in flight when the cancel lands, so the sweep that resolves
 `running` rows runs on every pass rather than once, making the race
 self-correcting.
+
+### ADR-022 — GitHub client on the standard library, not Octokit
+
+**Status:** accepted (2026-09-22) · **Context:** M3 needs eight GitHub
+endpoints: installation token, installation lookup, repositories, workflows,
+a file, dispatch, cancel/rerun, and check runs. **Options:** (A)
+`@octokit/auth-app` + `@octokit/rest`, typed and paginated, two new
+dependencies and a large surface to stub in tests; (B) `node:crypto` for the
+RS256 App JWT and `fetch` for the calls, with the base URL injectable.
+**Decision:** B, in `@eyesonbug/shared/node` so the API and the worker share
+one client. Every call was checked against docs.github.com rather than
+inferred. **Consequence:** tests run against an in-process fake GitHub
+(`node:http`) instead of mocking a library. If the surface grows past
+hand-rolled pagination, the request core is swapped for Octokit behind the
+same method signatures.
+
+### ADR-023 — Webhook deliveries are folded by GitHub's ids, not logged
+
+**Status:** accepted (2026-09-22) · **Context:** GitHub redelivers on
+request and the same event can arrive twice. **Decision:** no delivery table.
+The receiver verifies `X-Hub-Signature-256` over the raw body and queues the
+event; the worker upserts by `installation.id` and `workflow_run.id`, so a
+redelivery is a no-op. A `workflow_run` never reopens a run the reporter has
+sealed, and only moves a run that reported nothing to a terminal state.
+**Consequence:** unknown events are acknowledged and dropped; anything worth
+auditing is visible in GitHub's own delivery log.
