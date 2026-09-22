@@ -1,9 +1,18 @@
-import { Controller, Get, Inject, Param, Post, Query, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Param, Post, Query, Res, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { FastifyReply } from 'fastify';
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
-import { TenantDb, schema } from '@eyesonbug/db';
-import { paginationSchema, parseRunFilters, type RunFilters } from '@eyesonbug/shared';
+import { TenantDb, createDispatchedRun, schema } from '@eyesonbug/db';
+import {
+  TERMINAL_RUN_STATUSES,
+  paginationSchema,
+  parseRunFilters,
+  rerunKindSchema,
+  type RerunKind,
+  type RunFilters,
+} from '@eyesonbug/shared';
+import { GitHubApiError } from '@eyesonbug/shared/node';
+import { z } from 'zod';
 import { Access, AccessGuard, RequireCapability } from '../access/access.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { SessionUser } from '../auth/session.service';
@@ -12,6 +21,8 @@ import { ApiError } from '../common/errors';
 import type { AccessContext } from '../common/request-context';
 import { TENANT_DB } from '../database/database.module';
 import { S3Service } from '../storage/s3.service';
+import { zodPipe } from '../common/zod-validation.pipe';
+import { GitHubService } from '../github/github.service';
 
 /**
  * Reading runs.
@@ -28,24 +39,121 @@ export class RunsController {
     @Inject(TENANT_DB) private readonly tenant: TenantDb,
     private readonly s3: S3Service,
     private readonly ingest: IngestService,
+    private readonly github: GitHubService,
   ) {}
 
   /**
-   * Cancel a running run.
+   * Cancel a run.
    *
-   * Cooperative for now: it marks the run cancelled and the reporter stops
-   * sending on its next flush. Stopping the GitHub Actions job itself needs the
-   * GitHub App and arrives in M3.
+   * Cooperative first: the run is marked cancelled and the reporter stops on
+   * its next flush. When the run came from a GitHub workflow and the org has
+   * the App installed, the workflow run itself is cancelled too (ADR-021,
+   * amended at M3). A job GitHub no longer considers cancellable answers 409,
+   * which is not a failure of *our* cancel.
    */
   @Post('runs/:runId/cancel')
   @RequireCapability('run:cancel')
-  @ApiOperation({ summary: 'Cancel a run (cooperative until M3)' })
-  cancel(
+  @ApiOperation({ summary: 'Cancel a run, and its GitHub job when possible' })
+  async cancel(
     @Access() access: AccessContext,
     @CurrentUser() user: SessionUser,
     @Param('runId') runId: string,
-  ) {
-    return this.ingest.cancel(access, runId, user.id);
+  ): Promise<{ status: string; githubCancelled: boolean }> {
+    const result = await this.ingest.cancel(access, runId, user.id);
+    const target = await this.githubTarget(access, runId);
+    if (!target) return { ...result, githubCancelled: false };
+    try {
+      await this.github
+        .client()
+        .cancelRun(target.installationId, target.repo, target.githubWorkflowRunId);
+      return { ...result, githubCancelled: true };
+    } catch (error) {
+      if (error instanceof GitHubApiError && error.status === 409) {
+        return { ...result, githubCancelled: false };
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Re-run through GitHub Actions: the whole workflow or only its failed
+   * jobs. GitHub reuses the workflow run id with a new attempt, so the new Run
+   * row carries the same id and the `workflow_run` webhook fills it in.
+   */
+  @Post('runs/:runId/rerun')
+  @RequireCapability('run:trigger')
+  @ApiOperation({ summary: 'Re-run a finished run on GitHub (all or failed jobs)' })
+  async rerun(
+    @Access() access: AccessContext,
+    @CurrentUser() user: SessionUser,
+    @Param('runId') runId: string,
+    @Body(zodPipe(z.object({ kind: rerunKindSchema }).strict())) body: { kind: RerunKind },
+  ): Promise<{ runId: string; number: number }> {
+    const target = await this.githubTarget(access, runId);
+    if (!target) {
+      throw ApiError.conflict(
+        'This run did not come from a GitHub workflow the installation can reach',
+      );
+    }
+    if (!TERMINAL_RUN_STATUSES.includes(target.run.status)) {
+      throw ApiError.conflict('Only a finished run can be re-run');
+    }
+    await this.github
+      .client()
+      .rerun(target.installationId, target.repo, target.githubWorkflowRunId, body.kind);
+
+    const run = await this.tenant.withOrg(
+      { organizationId: access.organizationId, userId: user.id },
+      (tx) =>
+        createDispatchedRun(tx, {
+          organizationId: access.organizationId,
+          projectId: access.projectId!,
+          trigger: 'manual',
+          ref: target.run.branch ?? 'main',
+          workflowFile: target.run.githubWorkflowName ?? 'workflow',
+          githubWorkflowRunId: target.githubWorkflowRunId,
+          inputs: target.run.dispatchInputs ?? {},
+          workflowConfigId: target.run.workflowConfigId,
+          triggeredByUserId: user.id,
+          rerunOfRunId: target.run.id,
+          rerunKind: body.kind,
+        }),
+    );
+    return { runId: run.id, number: run.number };
+  }
+
+  /** The GitHub coordinates of a run, when it has any and the org can act on them. */
+  private async githubTarget(access: AccessContext, runId: string) {
+    const rows = await this.tenant.withOrg({ organizationId: access.organizationId }, (tx) =>
+      tx
+        .select({
+          run: schema.runs,
+          configRepo: schema.workflowConfigs.repoFullName,
+          projectRepo: schema.projects.repoFullName,
+        })
+        .from(schema.runs)
+        .leftJoin(
+          schema.workflowConfigs,
+          eq(schema.workflowConfigs.id, schema.runs.workflowConfigId),
+        )
+        .innerJoin(schema.projects, eq(schema.projects.id, schema.runs.projectId))
+        .where(and(eq(schema.runs.id, runId), eq(schema.runs.projectId, access.projectId!)))
+        .limit(1),
+    );
+    const row = rows[0];
+    if (!row) throw ApiError.notFound('Run');
+    const repo = row.configRepo ?? row.projectRepo;
+    if (!row.run.githubWorkflowRunId || !repo) return null;
+    const installation = await this.github.installationFor(access.organizationId);
+    if (!installation || installation.suspendedAt || !installation.repositories.includes(repo)) {
+      return null;
+    }
+    return {
+      run: row.run,
+      repo,
+      installationId: installation.installationId,
+      githubWorkflowRunId: row.run.githubWorkflowRunId,
+    };
   }
 
   @Get('runs')
@@ -116,6 +224,14 @@ export class RunsController {
           durationMs: schema.runs.durationMs,
           totals: schema.runs.totals,
           environment: schema.environments.name,
+          githubWorkflowRunId: schema.runs.githubWorkflowRunId,
+          githubWorkflowName: schema.runs.githubWorkflowName,
+          githubRunAttempt: schema.runs.githubRunAttempt,
+          rerunOfRunId: schema.runs.rerunOfRunId,
+          rerunKind: schema.runs.rerunKind,
+          workflowConfigId: schema.runs.workflowConfigId,
+          dispatchInputs: schema.runs.dispatchInputs,
+          gate: schema.runs.gate,
         })
         .from(schema.runs)
         .leftJoin(schema.environments, eq(schema.environments.id, schema.runs.environmentId))

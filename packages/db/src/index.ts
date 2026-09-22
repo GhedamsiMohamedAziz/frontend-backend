@@ -2,3 +2,4 @@ export * as schema from './schema/index';
 export * from './schema/index';
 export * from './client';
 export * from './queries/run-progress';
+export * from './queries/dispatch';

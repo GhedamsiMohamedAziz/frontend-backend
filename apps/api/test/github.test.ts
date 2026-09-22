@@ -18,6 +18,7 @@ import { signWebhookBody } from '@eyesonbug/shared/node';
  */
 const WEBHOOK_SECRET = 'test-webhook-secret';
 const INSTALLATION_ID = 4242;
+const WORKFLOW_RUN_ID = 555_001;
 
 const E2E_WORKFLOW = `
 name: e2e
@@ -38,8 +39,14 @@ on:
         required: true
 `;
 
-function fakeGithub(): Promise<{ server: HttpServer; url: string; calls: string[] }> {
+function fakeGithub(): Promise<{
+  server: HttpServer;
+  url: string;
+  calls: string[];
+  bodies: unknown[];
+}> {
   const calls: string[] = [];
+  const bodies: unknown[] = [];
   const server = createServer((req, res) => {
     const line = `${req.method} ${req.url}`;
     calls.push(line);
@@ -77,12 +84,33 @@ function fakeGithub(): Promise<{ server: HttpServer; url: string; calls: string[
       res.writeHead(200, { 'content-type': 'application/vnd.github.raw' });
       return res.end(E2E_WORKFLOW);
     }
+    if (line === 'POST /repos/acme-retail/storefront/actions/workflows/e2e.yml/dispatches') {
+      let raw = '';
+      req.on('data', (chunk: Buffer) => (raw += chunk));
+      req.on('end', () => {
+        bodies.push(JSON.parse(raw));
+        json(200, {
+          workflow_run_id: WORKFLOW_RUN_ID,
+          run_url: `${req.headers.host}/runs/${WORKFLOW_RUN_ID}`,
+          html_url: `https://github.com/acme-retail/storefront/actions/runs/${WORKFLOW_RUN_ID}`,
+        });
+      });
+      return;
+    }
+    if (line === `POST /repos/acme-retail/storefront/actions/runs/${WORKFLOW_RUN_ID}/cancel`) {
+      return json(202, {});
+    }
+    if (
+      line.startsWith(`POST /repos/acme-retail/storefront/actions/runs/${WORKFLOW_RUN_ID}/rerun`)
+    ) {
+      return json(201, {});
+    }
     return json(404, { message: `unhandled ${line}` });
   });
   return new Promise((resolve) => {
     server.listen(0, '127.0.0.1', () => {
       const address = server.address() as { port: number };
-      resolve({ server, url: `http://127.0.0.1:${address.port}`, calls });
+      resolve({ server, url: `http://127.0.0.1:${address.port}`, calls, bodies });
     });
   });
 }
@@ -126,6 +154,10 @@ describe('GitHub back office', () => {
   });
 
   afterAll(async () => {
+    await system.db.delete(schema.runs).where(eq(schema.runs.githubWorkflowRunId, WORKFLOW_RUN_ID));
+    await system.db
+      .delete(schema.workflowConfigs)
+      .where(eq(schema.workflowConfigs.name, 'Nightly e2e'));
     await system.db
       .delete(schema.githubInstallations)
       .where(eq(schema.githubInstallations.installationId, INSTALLATION_ID));
@@ -260,6 +292,126 @@ describe('GitHub back office', () => {
         .send(body);
       expect(response.status).toBe(202);
       expect(response.body).toEqual({ queued: false });
+    });
+  });
+
+  describe('workflow templates and dispatch', () => {
+    const base = '/v1/o/acme-retail/p/storefront';
+    let configId: string;
+    let runId: string;
+
+    it('needs workflow:manage to create a template', async () => {
+      const qa = await login('qa@eyesonbug.dev');
+      const response = await qa.post(`${base}/workflow-configs`).send({
+        name: 'Nightly e2e',
+        repoFullName: 'acme-retail/storefront',
+        workflowFile: 'e2e.yml',
+      });
+      expect(response.status).toBe(403);
+    });
+
+    it('creates a template with the inputs read from the workflow file', async () => {
+      const admin = await login('demo@eyesonbug.dev');
+      const response = await admin.post(`${base}/workflow-configs`).send({
+        name: 'Nightly e2e',
+        repoFullName: 'acme-retail/storefront',
+        workflowFile: 'e2e.yml',
+        defaultInputs: { environment: 'production' },
+      });
+      expect(response.status).toBe(201);
+      expect(Object.keys(response.body.inputsSchema).sort()).toEqual([
+        'environment',
+        'shards',
+        'smoke',
+      ]);
+      configId = response.body.id;
+
+      const listed = await admin.get(`${base}/workflow-configs`);
+      expect(listed.body.map((c: { id: string }) => c.id)).toContain(configId);
+    });
+
+    it('refuses a repository outside the installation', async () => {
+      const admin = await login('demo@eyesonbug.dev');
+      const response = await admin.post(`${base}/workflow-configs`).send({
+        name: 'Elsewhere',
+        repoFullName: 'acme-retail/secrets',
+        workflowFile: 'e2e.yml',
+      });
+      expect(response.status).toBe(404);
+    });
+
+    it('validates inputs against the workflow before calling GitHub', async () => {
+      const qa = await login('qa@eyesonbug.dev');
+      const response = await qa
+        .post(`${base}/workflow-configs/${configId}/dispatch`)
+        .send({ inputs: { environment: 'moon', bogus: '1' } });
+      expect(response.status).toBe(400);
+      expect([...response.body.error.details].sort()).toEqual([
+        '"bogus" is not an input of this workflow',
+        '"environment" must be one of staging, production',
+        '"smoke" is required',
+      ]);
+      expect(github.calls.filter((c) => c.includes('/dispatches'))).toHaveLength(0);
+    });
+
+    it('dispatches and creates the run with the id GitHub returns', async () => {
+      const qa = await login('qa@eyesonbug.dev');
+      const response = await qa
+        .post(`${base}/workflow-configs/${configId}/dispatch`)
+        .send({ inputs: { smoke: 'true' } });
+      expect(response.status).toBe(201);
+      expect(response.body.htmlUrl).toContain(String(WORKFLOW_RUN_ID));
+      runId = response.body.runId;
+
+      // Defaults from the template and the workflow file were merged in.
+      expect(github.bodies.at(-1)).toEqual({
+        ref: 'main',
+        inputs: { environment: 'production', shards: '4', smoke: 'true' },
+      });
+
+      const run = await qa.get(`${base}/runs/${runId}`);
+      expect(run.status).toBe(200);
+      expect(run.body).toMatchObject({ status: 'queued', trigger: 'manual', branch: 'main' });
+    });
+
+    it('cancels on GitHub as well as here', async () => {
+      const qa = await login('qa@eyesonbug.dev');
+      const response = await qa.post(`${base}/runs/${runId}/cancel`);
+      expect(response.status).toBe(201);
+      expect(response.body).toEqual({ status: 'cancelled', githubCancelled: true });
+      expect(github.calls).toContain(
+        `POST /repos/acme-retail/storefront/actions/runs/${WORKFLOW_RUN_ID}/cancel`,
+      );
+    });
+
+    it('re-runs failed jobs as a new attempt linked to the original', async () => {
+      const qa = await login('qa@eyesonbug.dev');
+      const response = await qa.post(`${base}/runs/${runId}/rerun`).send({ kind: 'failed' });
+      expect(response.status).toBe(201);
+      expect(github.calls).toContain(
+        `POST /repos/acme-retail/storefront/actions/runs/${WORKFLOW_RUN_ID}/rerun-failed-jobs`,
+      );
+      const rerun = await qa.get(`${base}/runs/${response.body.runId}`);
+      expect(rerun.body).toMatchObject({
+        status: 'queued',
+        rerunOfRunId: runId,
+        rerunKind: 'failed',
+      });
+    });
+
+    it('will not re-run a run that is still going', async () => {
+      const qa = await login('qa@eyesonbug.dev');
+      const queued = await qa.get(`${base}/runs`);
+      const running = queued.body.items.find((r: { status: string }) => r.status === 'queued');
+      const response = await qa.post(`${base}/runs/${running.id}/rerun`).send({ kind: 'all' });
+      expect(response.status).toBe(409);
+    });
+
+    it('lets a viewer see templates but not launch them', async () => {
+      const viewer = await login('viewer@eyesonbug.dev');
+      expect((await viewer.get(`${base}/workflow-configs`)).status).toBe(200);
+      const response = await viewer.post(`${base}/workflow-configs/${configId}/dispatch`).send({});
+      expect(response.status).toBe(403);
     });
   });
 });

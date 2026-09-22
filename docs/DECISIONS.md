@@ -245,7 +245,12 @@ between updates.
 
 ### ADR-021 — Cancellation is cooperative until the GitHub App lands
 
-**Status:** accepted (2026-09-22) · **Context:** the spec wants Cancel and
+**Status:** amended at M3 (2026-09-22) — Cancel now also cancels the GitHub
+workflow run when the run has one and the org's installation reaches its
+repository; a 409 from GitHub (no longer cancellable) is reported as
+`githubCancelled: false`, not as a failure. Rerun ships as `POST
+runs/:id/rerun { kind: all | failed }` and creates a new Run row with the same
+`github_workflow_run_id`, linked by `rerun_of_run_id`. · **Original:** accepted (2026-09-22) · **Context:** the spec wants Cancel and
 Rerun through GitHub Actions, which needs the GitHub App from M3.
 **Decision:** ship Cancel now as a cooperative stop — the run is marked
 cancelled, in-flight results are resolved as `broken`, and the reporter sees the

@@ -100,6 +100,13 @@ export const EMPTY_TOTALS: RunTotals = {
  * link back through `rerunOfRunId` instead, so a rerun records what it re-ran
  * without claiming to be a child of it.
  */
+export interface RunGate {
+  gateId: string;
+  name: string;
+  passed: boolean;
+  reasons: string[];
+}
+
 export const runs = pgTable(
   'run',
   {
@@ -125,6 +132,14 @@ export const runs = pgTable(
     parentRunId: uuid(),
     rerunOfRunId: uuid(),
     rerunKind: rerunKindEnum(),
+
+    /** Set when the run was dispatched from here (M3): what launched it and with what. */
+    workflowConfigId: uuid(),
+    scheduleId: uuid(),
+    dispatchInputs: jsonb().$type<Record<string, string>>(),
+    /** Quality gate verdict, written by the worker when the run seals. */
+    gate: jsonb().$type<RunGate>(),
+    githubCheckRunId: bigint({ mode: 'number' }),
 
     triggeredByUserId: uuid().references(() => users.id, { onDelete: 'set null' }),
     triggeredByTokenId: uuid().references(() => apiTokens.id, { onDelete: 'set null' }),

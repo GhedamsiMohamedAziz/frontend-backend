@@ -69,3 +69,43 @@ export const linkInstallationSchema = z
   .object({ installationId: z.number().int().positive() })
   .strict();
 export type LinkInstallationInput = z.infer<typeof linkInstallationSchema>;
+
+/**
+ * Merge the caller's inputs over the config defaults and check them against
+ * the workflow's declared inputs, so GitHub's 422 is never the first thing a
+ * user sees. Booleans and numbers are sent as strings, as GitHub expects.
+ */
+export function resolveDispatchInputs(
+  declared: WorkflowInputs,
+  defaults: Record<string, string>,
+  given: Record<string, string>,
+): { inputs: Record<string, string>; errors: string[] } {
+  const merged: Record<string, string> = { ...defaults, ...given };
+  const errors: string[] = [];
+  const inputs: Record<string, string> = {};
+
+  for (const name of Object.keys(merged)) {
+    if (!(name in declared)) errors.push(`"${name}" is not an input of this workflow`);
+  }
+  for (const [name, spec] of Object.entries(declared)) {
+    const value = merged[name] ?? (spec.default !== undefined ? String(spec.default) : undefined);
+    if (value === undefined) {
+      if (spec.required) errors.push(`"${name}" is required`);
+      continue;
+    }
+    if (spec.type === 'choice' && spec.options && !spec.options.includes(value)) {
+      errors.push(`"${name}" must be one of ${spec.options.join(', ')}`);
+    }
+    if (spec.type === 'boolean' && value !== 'true' && value !== 'false') {
+      errors.push(`"${name}" must be true or false`);
+    }
+    if (spec.type === 'number' && Number.isNaN(Number(value))) {
+      errors.push(`"${name}" must be a number`);
+    }
+    inputs[name] = value;
+  }
+  if (Object.keys(inputs).length > DISPATCH_INPUT_LIMIT) {
+    errors.push(`GitHub accepts at most ${DISPATCH_INPUT_LIMIT} inputs`);
+  }
+  return { inputs, errors };
+}
