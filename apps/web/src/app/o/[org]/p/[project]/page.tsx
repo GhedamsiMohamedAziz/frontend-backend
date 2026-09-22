@@ -3,7 +3,16 @@
 import { use } from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
-import { CheckCircle2, GitBranch, Github, KeyRound, PlayCircle, Server, Users } from 'lucide-react';
+import {
+  CheckCircle2,
+  GitBranch,
+  Github,
+  KeyRound,
+  PlayCircle,
+  Server,
+  Settings,
+  Users,
+} from 'lucide-react';
 import { getEnvironments, getMembers, getProject, getTokens } from '@/lib/api';
 import { useTranslate } from '@/lib/i18n';
 import { AppShell } from '@/components/app-shell';
@@ -97,6 +106,31 @@ export default function ProjectPage({
             </span>
           </Card>
         </Link>
+
+        <Card className="space-y-3">
+          <h2 className="flex items-center gap-2 font-medium">
+            <Settings className="h-4 w-4 text-[var(--color-ink-muted)]" aria-hidden />
+            {t('settings.title')}
+          </h2>
+          <ul className="flex flex-wrap gap-4 text-sm">
+            {(
+              [
+                ['workflows', t('settings.workflows')],
+                ['schedules', t('settings.schedules')],
+                ['quality-gates', t('settings.gates')],
+              ] as const
+            ).map(([path, label]) => (
+              <li key={path}>
+                <Link
+                  href={`/o/${org}/p/${slug}/settings/${path}`}
+                  className="text-[var(--color-brand)] hover:underline"
+                >
+                  {label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </Card>
 
         <div className="grid gap-4 lg:grid-cols-2">
           <Card className="space-y-3">

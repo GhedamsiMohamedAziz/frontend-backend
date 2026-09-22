@@ -68,7 +68,7 @@ export async function expireAttachments(system: SystemDb): Promise<number> {
  * two hours is marked `errored`, which is the honest answer: we do not know how
  * it ended, only that it stopped.
  */
-export async function reapStaleRuns(system: SystemDb): Promise<number> {
+export async function reapStaleRuns(system: SystemDb): Promise<string[]> {
   const result = await system.db.execute<{ id: string }>(sql`
     update run
     set status = 'errored',
@@ -99,7 +99,7 @@ export async function reapStaleRuns(system: SystemDb): Promise<number> {
     `);
   }
 
-  return result.rows.length;
+  return result.rows.map((row) => row.id);
 }
 
 export async function runMaintenance(system: SystemDb, job: MaintenanceJob): Promise<void> {
@@ -121,7 +121,7 @@ export async function runMaintenance(system: SystemDb, job: MaintenanceJob): Pro
     }
     case 'reap-stale-runs': {
       const reaped = await reapStaleRuns(system);
-      if (reaped > 0) logger.warn({ reaped }, 'stale runs marked errored');
+      if (reaped.length > 0) logger.warn({ reaped: reaped.length }, 'stale runs marked errored');
       return;
     }
   }

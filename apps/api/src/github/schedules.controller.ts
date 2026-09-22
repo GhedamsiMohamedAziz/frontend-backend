@@ -101,6 +101,19 @@ export class SchedulesController {
     const nextRunAt = enabled ? this.nextRun(cron, timezone) : null;
 
     return this.tenant.withOrg({ organizationId: access.organizationId }, async (tx) => {
+      if (body.workflowConfigId) {
+        const config = await tx
+          .select({ id: schema.workflowConfigs.id })
+          .from(schema.workflowConfigs)
+          .where(
+            and(
+              eq(schema.workflowConfigs.id, body.workflowConfigId),
+              eq(schema.workflowConfigs.projectId, access.projectId!),
+            ),
+          )
+          .limit(1);
+        if (!config[0]) throw ApiError.notFound('Workflow template');
+      }
       const [row] = await tx
         .update(schema.schedules)
         .set({ ...body, nextRunAt })

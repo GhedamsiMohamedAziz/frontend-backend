@@ -2,8 +2,9 @@
 
 import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronLeft, Layers, Paperclip } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'next/navigation';
+import { ChevronLeft, Layers, Paperclip, RotateCcw, ShieldCheck, ShieldX } from 'lucide-react';
 import {
   attachmentUrl,
   getFailures,
@@ -11,14 +12,16 @@ import {
   getResults,
   getProject,
   getRun,
+  rerunRun,
   type FailureCluster,
 } from '@/lib/api';
-import type { LiveResult } from '@eyesonbug/shared';
+import type { LiveResult, RerunKind } from '@eyesonbug/shared';
+import { TERMINAL_RUN_STATUSES } from '@eyesonbug/shared';
 import { useRunStream } from '@/lib/use-run-stream';
 import { useTranslate } from '@/lib/i18n';
 import { AppShell } from '@/components/app-shell';
 import { LiveRun } from '@/components/live-run';
-import { Badge, Card, EmptyState, Skeleton } from '@/components/ui';
+import { Badge, Button, Card, EmptyState, Skeleton } from '@/components/ui';
 import { StatusIcon, StatusPill, TotalsBar, formatDuration } from '@/components/status';
 
 export default function RunReportPage({
@@ -28,6 +31,7 @@ export default function RunReportPage({
 }): React.ReactElement {
   const { org, project, runId } = use(params);
   const t = useTranslate();
+  const router = useRouter();
   const queryClient = useQueryClient();
   const [openResultId, setOpenResultId] = useState<string | null>(null);
 
@@ -72,6 +76,19 @@ export default function RunReportPage({
     refetchInterval: isLive ? 15_000 : false,
   });
 
+  // Only to show which run this one re-ran, so it waits for the detail to say
+  // there is one.
+  const original = useQuery({
+    queryKey: ['run', org, project, run.data?.rerunOfRunId],
+    queryFn: () => getRun(org, project, run.data!.rerunOfRunId!),
+    enabled: Boolean(run.data?.rerunOfRunId),
+  });
+
+  const rerun = useMutation({
+    mutationFn: (kind: RerunKind) => rerunRun(org, project, runId, kind),
+    onSuccess: ({ runId: newRunId }) => router.push(`/o/${org}/p/${project}/runs/${newRunId}`),
+  });
+
   if (run.isPending) {
     return (
       <AppShell>
@@ -93,6 +110,11 @@ export default function RunReportPage({
   }
 
   const detail = run.data;
+  // GitHub can only re-run a workflow run that has finished.
+  const canRerun =
+    Boolean(detail.githubWorkflowRunId) &&
+    capabilities.includes('run:trigger') &&
+    TERMINAL_RUN_STATUSES.some((status) => status === detail.status);
 
   return (
     <AppShell>
@@ -111,7 +133,38 @@ export default function RunReportPage({
               {t('run.title')} #{detail.number}
             </h1>
             <StatusPill status={detail.status} />
+
+            {canRerun ? (
+              <span className="ml-auto flex items-center gap-2">
+                <Button onClick={() => rerun.mutate('all')} disabled={rerun.isPending}>
+                  <RotateCcw className="h-4 w-4" aria-hidden />
+                  {t('run.rerunAll')}
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => rerun.mutate('failed')}
+                  disabled={rerun.isPending}
+                >
+                  {t('run.rerunFailed')}
+                </Button>
+              </span>
+            ) : null}
           </div>
+
+          {rerun.error ? (
+            <p className="text-sm text-[var(--color-fail)]">{(rerun.error as Error).message}</p>
+          ) : null}
+
+          {detail.rerunOfRunId ? (
+            <Link
+              href={`/o/${org}/p/${project}/runs/${detail.rerunOfRunId}`}
+              className="inline-flex items-center gap-1.5 text-sm text-[var(--color-brand)] hover:underline"
+            >
+              <RotateCcw className="h-3.5 w-3.5" aria-hidden />
+              {t('run.rerunOf')} #{original.data?.number ?? '…'} (
+              {t(detail.rerunKind === 'failed' ? 'run.rerunOf.failed' : 'run.rerunOf.all')})
+            </Link>
+          ) : null}
 
           <p className="text-sm text-[var(--color-ink-muted)]">
             {detail.commitMessage ?? t('runs.noCommitMessage')}
@@ -124,6 +177,36 @@ export default function RunReportPage({
             <span>{formatDuration(detail.durationMs)}</span>
           </div>
         </header>
+
+        {detail.gate ? (
+          <Card
+            className={
+              detail.gate.passed
+                ? 'border-l-2 border-l-[var(--color-pass)]'
+                : 'border-l-2 border-l-[var(--color-fail)]'
+            }
+          >
+            <div className="flex flex-wrap items-center gap-2">
+              {detail.gate.passed ? (
+                <ShieldCheck className="h-4 w-4 text-[var(--color-pass)]" aria-hidden />
+              ) : (
+                <ShieldX className="h-4 w-4 text-[var(--color-fail)]" aria-hidden />
+              )}
+              <span className="font-medium">{t('run.gate')}</span>
+              <span className="text-sm text-[var(--color-ink-muted)]">{detail.gate.name}</span>
+              <Badge tone={detail.gate.passed ? 'pass' : 'fail'}>
+                {t(detail.gate.passed ? 'run.gate.passed' : 'run.gate.failed')}
+              </Badge>
+            </div>
+            {detail.gate.reasons.length > 0 ? (
+              <ul className="mt-2 space-y-1 text-sm text-[var(--color-fail)]">
+                {detail.gate.reasons.map((reason) => (
+                  <li key={reason}>{reason}</li>
+                ))}
+              </ul>
+            ) : null}
+          </Card>
+        ) : null}
 
         {isLive && stream.progress ? (
           <LiveRun

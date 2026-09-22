@@ -80,15 +80,19 @@ export function resolveDispatchInputs(
   defaults: Record<string, string>,
   given: Record<string, string>,
 ): { inputs: Record<string, string>; errors: string[] } {
-  const merged: Record<string, string> = { ...defaults, ...given };
+  // A template default the workflow no longer declares is dropped silently:
+  // it is stale configuration, not a caller mistake. A caller's unknown key
+  // is an error, since GitHub would refuse it.
   const errors: string[] = [];
   const inputs: Record<string, string> = {};
-
-  for (const name of Object.keys(merged)) {
+  for (const name of Object.keys(given)) {
     if (!(name in declared)) errors.push(`"${name}" is not an input of this workflow`);
   }
+  const merged: Record<string, string> = { ...defaults, ...given };
   for (const [name, spec] of Object.entries(declared)) {
-    const value = merged[name] ?? (spec.default !== undefined ? String(spec.default) : undefined);
+    // An empty string means "not provided": fall back to the default.
+    const provided = merged[name]?.trim() ? merged[name] : undefined;
+    const value = provided ?? (spec.default !== undefined ? String(spec.default) : undefined);
     if (value === undefined) {
       if (spec.required) errors.push(`"${name}" is required`);
       continue;
@@ -99,7 +103,7 @@ export function resolveDispatchInputs(
     if (spec.type === 'boolean' && value !== 'true' && value !== 'false') {
       errors.push(`"${name}" must be true or false`);
     }
-    if (spec.type === 'number' && Number.isNaN(Number(value))) {
+    if (spec.type === 'number' && (!value.trim() || Number.isNaN(Number(value)))) {
       errors.push(`"${name}" must be a number`);
     }
     inputs[name] = value;

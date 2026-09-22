@@ -159,6 +159,7 @@ describe('GitHub back office', () => {
 
   afterAll(async () => {
     await system.db.delete(schema.runs).where(eq(schema.runs.githubWorkflowRunId, WORKFLOW_RUN_ID));
+    await system.db.delete(schema.apiTokens).where(eq(schema.apiTokens.name, 'adopt-test'));
     await system.db
       .delete(schema.workflowConfigs)
       .where(eq(schema.workflowConfigs.name, 'Nightly e2e'));
@@ -406,6 +407,21 @@ describe('GitHub back office', () => {
       const run = await qa.get(`${base}/runs/${runId}`);
       expect(run.status).toBe(200);
       expect(run.body).toMatchObject({ status: 'queued', trigger: 'manual', branch: 'main' });
+    });
+
+    it('lets the reporter adopt the dispatched run instead of opening a second one', async () => {
+      const admin = await login('demo@eyesonbug.dev');
+      const token = await admin.post(`${base}/tokens`).send({ name: 'adopt-test' });
+      expect(token.status).toBe(201);
+      const opened = await request(server)
+        .post('/v1/ingest/runs')
+        .set('authorization', `Bearer ${token.body.token}`)
+        .set('idempotency-key', `adopt-${Date.now()}`)
+        .send({ githubWorkflowRunId: WORKFLOW_RUN_ID, branch: 'main', commitSha: 'abc' });
+      expect(opened.status).toBe(201);
+      expect(opened.body.runId).toBe(runId);
+      const run = await admin.get(`${base}/runs/${runId}`);
+      expect(run.body).toMatchObject({ status: 'running', commitSha: 'abc' });
     });
 
     it('cancels on GitHub as well as here', async () => {

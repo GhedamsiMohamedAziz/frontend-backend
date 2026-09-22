@@ -60,6 +60,9 @@ export class RunsController {
     @Param('runId') runId: string,
   ): Promise<{ status: string; githubCancelled: boolean }> {
     const result = await this.ingest.cancel(access, runId, user.id);
+    // A cancelled run is sealed: give the worker a pass so its gate is
+    // evaluated and reported, or a required check would wait forever.
+    await this.ingest.complete(access, runId);
     const target = await this.githubTarget(access, runId);
     if (!target) return { ...result, githubCancelled: false };
     try {
@@ -100,7 +103,16 @@ export class RunsController {
     }
     await this.github
       .client()
-      .rerun(target.installationId, target.repo, target.githubWorkflowRunId, body.kind);
+      .rerun(target.installationId, target.repo, target.githubWorkflowRunId, body.kind)
+      .catch((error: unknown) => {
+        if (error instanceof GitHubApiError && error.status === 404) {
+          throw ApiError.notFound('The GitHub workflow run (it may have expired)');
+        }
+        if (error instanceof GitHubApiError && (error.status === 403 || error.status === 409)) {
+          throw ApiError.conflict(`GitHub refused the re-run: ${error.message}`);
+        }
+        throw error;
+      });
 
     const run = await this.tenant.withOrg(
       { organizationId: access.organizationId, userId: user.id },

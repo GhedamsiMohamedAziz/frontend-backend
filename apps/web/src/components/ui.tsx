@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -112,5 +113,65 @@ export function Button({
     >
       {children}
     </button>
+  );
+}
+
+/** The input/select shape used by every form in the app. */
+export const fieldClass =
+  'w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm';
+
+export function Field({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+}): React.ReactElement {
+  return (
+    <label className="block space-y-1.5">
+      <span className="text-sm font-medium">{label}</span>
+      {children}
+      {hint ? <span className="block text-xs text-[var(--color-ink-muted)]">{hint}</span> : null}
+    </label>
+  );
+}
+
+/**
+ * Destructive actions confirm in place: a second click on the same button,
+ * rather than a `window.confirm` dialog the browser styles and screen readers
+ * announce out of context.
+ */
+export function ConfirmButton({
+  label,
+  confirmLabel,
+  onConfirm,
+  disabled,
+}: {
+  label: string;
+  confirmLabel: string;
+  onConfirm: () => void;
+  disabled?: boolean;
+}): React.ReactElement {
+  const [armed, setArmed] = useState(false);
+
+  return (
+    <Button
+      variant="ghost"
+      disabled={disabled}
+      className={armed ? 'border-[var(--color-fail)] text-[var(--color-fail)]' : undefined}
+      onClick={() => {
+        if (!armed) {
+          setArmed(true);
+          return;
+        }
+        setArmed(false);
+        onConfirm();
+      }}
+      onBlur={() => setArmed(false)}
+    >
+      {armed ? confirmLabel : label}
+    </Button>
   );
 }

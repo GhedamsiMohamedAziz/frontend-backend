@@ -3,7 +3,7 @@
 import { use } from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
-import { FolderGit2, ChevronRight } from 'lucide-react';
+import { FolderGit2, ChevronRight, Github } from 'lucide-react';
 import { getMe } from '@/lib/api';
 import { useTranslate } from '@/lib/i18n';
 import { AppShell } from '@/components/app-shell';
@@ -23,9 +23,18 @@ export default function OrgPage({
   return (
     <AppShell>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-semibold">{t('projects.title')}</h1>
-          <p className="text-sm text-[var(--color-ink-muted)]">{org}</p>
+        <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <h1 className="text-2xl font-semibold">{t('projects.title')}</h1>
+            <p className="text-sm text-[var(--color-ink-muted)]">{org}</p>
+          </div>
+          <Link
+            href={`/o/${org}/settings/github`}
+            className="ml-auto inline-flex items-center gap-1.5 text-sm text-[var(--color-brand)] hover:underline"
+          >
+            <Github className="h-4 w-4" aria-hidden />
+            {t('settings.github')}
+          </Link>
         </div>
 
         {me.isPending ? (

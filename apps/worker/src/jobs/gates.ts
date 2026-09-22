@@ -9,14 +9,19 @@ import {
 import { GitHubApiError, type GitHubApp } from '@eyesonbug/shared/node';
 import { logger } from '../logger';
 
+/** `github_check_run_id` while a report is in flight, or after GitHub refused one. */
+const CHECK_RUN_CLAIMED = 0;
+
 /**
- * Evaluate the project's quality gate for a run, once, when the run is sealed.
+ * Evaluate the project's quality gate for a run, once, when the run is sealed
+ * (ADR-026).
  *
- * Idempotent on `run.gate`: every ingest pass and every `workflow_run`
- * delivery may call this, and only the first call after the run reaches a
- * terminal status does any work. The verdict is stored first and reported to
- * GitHub second, so a GitHub outage loses the check run, not the verdict —
- * and a later pass retries the report while `github_check_run_id` is null.
+ * Every ingest pass, `workflow_run` delivery, cancel and reap may call this.
+ * The verdict is written under an `IS NULL` guard in its own transaction, so
+ * concurrent passes evaluate once and a GitHub outage cannot roll it back.
+ * The check run is then claimed (the id column set to a sentinel) before the
+ * HTTP call, so it is posted at most once; a network fault releases the claim
+ * for the next pass, a refusal keeps it so we do not retry forever.
  */
 export async function evaluateGate(
   system: SystemDb,
@@ -43,11 +48,18 @@ export async function evaluateGate(
   if (!row) return;
   const { run } = row;
   if (!TERMINAL_RUN_STATUSES.includes(run.status)) return;
-  if (run.gate && run.githubCheckRunId) return;
+  if (run.githubCheckRunId !== null) return;
+  const errored = run.status === 'errored' || run.status === 'cancelled';
+  // A sealed run with no results and no error is a placeholder the reporter
+  // never adopted (e.g. a duplicate row); a gate on nothing would be green.
+  if (run.totals.total === 0 && !errored) return;
 
-  await tenant.withOrg({ organizationId: run.organizationId }, async (tx) => {
-    let gate = run.gate;
-    if (!gate) {
+  const orgCtx = { organizationId: run.organizationId };
+
+  // 1. The verdict, committed on its own.
+  let gate = run.gate;
+  if (!gate) {
+    gate = await tenant.withOrg(orgCtx, async (tx) => {
       const gates = await tx
         .select()
         .from(schema.qualityGates)
@@ -59,7 +71,7 @@ export async function evaluateGate(
         )
         .orderBy(schema.qualityGates.name);
       const applicable = gates.find((g) => branchMatches(g.appliesToBranches, run.branch));
-      if (!applicable) return;
+      if (!applicable) return null;
 
       const quarantined = row.quarantineBlocksGate
         ? 0
@@ -82,22 +94,25 @@ export async function evaluateGate(
         applicable.rules as GateRules,
         run.totals,
         quarantined,
-        run.status === 'errored' || run.status === 'cancelled',
+        errored,
       );
-      gate = { gateId: applicable.id, name: applicable.name, ...verdict };
-      // Only the first evaluation wins; a concurrent pass sees `gate` set.
+      const value = { gateId: applicable.id, name: applicable.name, ...verdict };
       const written = await tx
         .update(schema.runs)
-        .set({ gate })
+        .set({ gate: value })
         .where(and(eq(schema.runs.id, run.id), isNull(schema.runs.gate)))
-        .returning({ id: schema.runs.id });
-      if (!written[0]) return;
-    }
+        .returning({ gate: schema.runs.gate });
+      // Lost the race: the other pass owns the verdict and the report.
+      return written[0] ? value : null;
+    });
+    if (!gate) return;
+  }
 
-    // Report to GitHub when there is a commit to attach it to and an
-    // installation that can reach the repository.
-    const repo = row.configRepo ?? row.projectRepo;
-    if (!github || !run.commitSha || !repo) return;
+  // 2. The report, when there is a commit to attach it to and an installation
+  //    that reaches the repository.
+  const repo = row.configRepo ?? row.projectRepo;
+  if (!github || !run.commitSha || !repo) return;
+  const target = await tenant.withOrg(orgCtx, async (tx) => {
     const [installation] = await tx
       .select({
         installationId: schema.githubInstallations.installationId,
@@ -105,40 +120,49 @@ export async function evaluateGate(
         suspendedAt: schema.githubInstallations.suspendedAt,
       })
       .from(schema.githubInstallations)
+      .where(eq(schema.githubInstallations.organizationId, run.organizationId))
       .limit(1);
     const granted = installation?.repositories.find(
       (name) => name.toLowerCase() === repo.toLowerCase(),
     );
-    if (!installation || installation.suspendedAt || !granted) return;
-
-    const t = run.totals;
-    try {
-      const check = await github.createCheckRun(installation.installationId, granted, {
-        name: `EyesOnBug / ${gate.name}`,
-        head_sha: run.commitSha,
-        status: 'completed',
-        conclusion: gate.passed ? 'success' : 'failure',
-        details_url: `${webUrl}/o/${row.orgSlug}/p/${row.projectSlug}/runs/${run.id}`,
-        output: {
-          title: gate.passed ? 'Quality gate passed' : 'Quality gate failed',
-          summary:
-            `${t.passed} passed, ${t.failed} failed, ${t.broken} broken, ` +
-            `${t.flaky} flaky, ${t.skipped} skipped` +
-            (gate.reasons.length ? `\n\n- ${gate.reasons.join('\n- ')}` : ''),
-        },
-      });
-      await tx
-        .update(schema.runs)
-        .set({ githubCheckRunId: check.id })
-        .where(eq(schema.runs.id, run.id));
-    } catch (error) {
-      // A rejected check (e.g. the sha is unknown to GitHub, or permissions
-      // were withdrawn) is not retryable; a network fault is, on the next pass.
-      if (error instanceof GitHubApiError && error.status >= 400 && error.status < 500) {
-        logger.warn({ runId: run.id, status: error.status }, 'GitHub refused the check run');
-        return;
-      }
-      throw error;
-    }
+    if (!installation || installation.suspendedAt || !granted) return null;
+    const claimed = await tx
+      .update(schema.runs)
+      .set({ githubCheckRunId: CHECK_RUN_CLAIMED })
+      .where(and(eq(schema.runs.id, run.id), isNull(schema.runs.githubCheckRunId)))
+      .returning({ id: schema.runs.id });
+    return claimed[0] ? { installationId: installation.installationId, repo: granted } : null;
   });
+  if (!target) return;
+
+  const t = run.totals;
+  const release = (id: number | null) =>
+    tenant.withOrg(orgCtx, (tx) =>
+      tx.update(schema.runs).set({ githubCheckRunId: id }).where(eq(schema.runs.id, run.id)),
+    );
+  try {
+    const check = await github.createCheckRun(target.installationId, target.repo, {
+      name: `EyesOnBug / ${gate.name}`,
+      head_sha: run.commitSha,
+      status: 'completed',
+      conclusion: gate.passed ? 'success' : 'failure',
+      details_url: `${webUrl}/o/${row.orgSlug}/p/${row.projectSlug}/runs/${run.id}`,
+      output: {
+        title: gate.passed ? 'Quality gate passed' : 'Quality gate failed',
+        summary:
+          `${t.passed} passed, ${t.failed} failed, ${t.broken} broken, ` +
+          `${t.flaky} flaky, ${t.skipped} skipped` +
+          (gate.reasons.length ? `\n\n- ${gate.reasons.join('\n- ')}` : ''),
+      },
+    });
+    await release(check.id);
+  } catch (error) {
+    if (error instanceof GitHubApiError && error.status >= 400 && error.status < 500) {
+      // Not retryable (unknown sha, permissions withdrawn): keep the claim.
+      logger.warn({ runId: run.id, status: error.status }, 'GitHub refused the check run');
+      return;
+    }
+    await release(null);
+    throw error;
+  }
 }

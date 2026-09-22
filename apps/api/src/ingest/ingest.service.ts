@@ -1,6 +1,6 @@
 import { extname } from 'node:path';
 import { Inject, Injectable } from '@nestjs/common';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { TenantDb, buildRunProgress, schema } from '@eyesonbug/db';
 import type { IngestEvent } from '@eyesonbug/shared';
 import { ApiError } from '../common/errors';
@@ -67,6 +67,56 @@ export class IngestService {
           number: payload.number ?? 0,
           url: this.runUrl(access, existing[0].runId),
         };
+      }
+
+      // A run we dispatched ourselves already has a row, keyed by the GitHub
+      // workflow run id: the reporter inside that job adopts it rather than
+      // opening a second one.
+      if (input.githubWorkflowRunId) {
+        const dispatched = await tx
+          .select({ id: schema.runs.id, number: schema.runs.number })
+          .from(schema.runs)
+          .where(
+            and(
+              eq(schema.runs.projectId, projectId),
+              eq(schema.runs.githubWorkflowRunId, input.githubWorkflowRunId),
+              inArray(schema.runs.status, ['queued', 'running']),
+              sql`${schema.runs.totals}->>'total' = '0'`,
+            ),
+          )
+          .orderBy(desc(schema.runs.queuedAt))
+          .limit(1);
+        if (dispatched[0]) {
+          await tx
+            .update(schema.runs)
+            .set({
+              status: 'running',
+              startedAt: new Date(),
+              branch: input.branch ?? undefined,
+              commitSha: input.commitSha ?? undefined,
+              commitMessage: input.commitMessage ?? undefined,
+              commitAuthor: input.commitAuthor ?? undefined,
+              buildVersion: input.buildVersion ?? undefined,
+              githubWorkflowName: input.githubWorkflowName ?? undefined,
+              githubRunAttempt: input.githubRunAttempt ?? undefined,
+              triggeredByTokenId: tokenId ?? null,
+            })
+            .where(eq(schema.runs.id, dispatched[0].id));
+          await tx.insert(schema.ingestEvents).values({
+            organizationId: access.organizationId,
+            projectId,
+            idempotencyKey,
+            runId: dispatched[0].id,
+            kind: 'run.open',
+            payload: { number: dispatched[0].number },
+            processedAt: new Date(),
+          });
+          return {
+            runId: dispatched[0].id,
+            number: dispatched[0].number,
+            url: this.runUrl(access, dispatched[0].id),
+          };
+        }
       }
 
       // Per-project run numbers ("run #412") come from a counter on the project

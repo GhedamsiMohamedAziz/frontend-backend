@@ -3,7 +3,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Activity, Ban, WifiOff } from 'lucide-react';
 import type { LiveResult, RunProgress } from '@eyesonbug/shared';
-import { apiFetch, attachmentUrl } from '@/lib/api';
+import { attachmentUrl, cancelRun } from '@/lib/api';
 import { formatEta } from '@/lib/use-run-stream';
 import { useTranslate } from '@/lib/i18n';
 import { Badge, Button, Card } from './ui';
@@ -46,8 +46,7 @@ export function LiveRun({
   const queryClient = useQueryClient();
 
   const cancel = useMutation({
-    mutationFn: () =>
-      apiFetch(`/v1/o/${org}/p/${project}/runs/${runId}/cancel`, { method: 'POST' }),
+    mutationFn: () => cancelRun(org, project, runId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['run', org, project, runId] }),
   });
 
@@ -101,6 +100,14 @@ export function LiveRun({
             </Button>
           ) : null}
         </div>
+
+        {/* Whether the GitHub job stopped too is the part a cancel cannot
+            always deliver, so it is reported rather than assumed. */}
+        {cancel.data ? (
+          <p className="text-sm text-[var(--color-ink-muted)]">
+            {t(cancel.data.githubCancelled ? 'live.cancelled.github' : 'live.cancelled.local')}
+          </p>
+        ) : null}
 
         {percent !== null ? (
           <div

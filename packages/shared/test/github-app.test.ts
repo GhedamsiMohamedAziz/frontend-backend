@@ -79,3 +79,67 @@ on:
     });
   });
 });
+
+describe('dispatchWorkflow', () => {
+  it('uses the run id GitHub returns, or polls for it when the body is empty', async () => {
+    const { createServer } = await import('node:http');
+    const { privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
+    const calls: string[] = [];
+    let emptyBody = false;
+    const server = createServer((req, res) => {
+      calls.push(`${req.method} ${req.url}`);
+      if (req.url?.includes('/access_tokens')) {
+        res.writeHead(201, { 'content-type': 'application/json' });
+        return res.end(JSON.stringify({ token: 't', expires_at: new Date(Date.now() + 3.6e6) }));
+      }
+      if (req.url?.endsWith('/dispatches')) {
+        if (emptyBody) return res.writeHead(204).end();
+        res.writeHead(200, { 'content-type': 'application/json' });
+        return res.end(JSON.stringify({ workflow_run_id: 11, run_url: 'r', html_url: 'h' }));
+      }
+      if (req.url?.includes('/runs?event=workflow_dispatch')) {
+        res.writeHead(200, { 'content-type': 'application/json' });
+        return res.end(JSON.stringify({ workflow_runs: [{ id: 22, url: 'r2', html_url: 'h2' }] }));
+      }
+      res.writeHead(404).end();
+    });
+    await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
+    const { port } = server.address() as { port: number };
+    const app = new GitHubApp({
+      appId: '1',
+      privateKey: privateKey.export({ type: 'pkcs1', format: 'pem' }).toString(),
+      apiUrl: `http://127.0.0.1:${port}`,
+    });
+    const noSleep = async () => {};
+
+    const direct = await app.dispatchWorkflow(1, 'o/r', 'e2e.yml', 'main', {}, noSleep);
+    expect(direct.workflow_run_id).toBe(11);
+    expect(calls.filter((c) => c.includes('/runs?'))).toHaveLength(0);
+
+    emptyBody = true;
+    const polled = await app.dispatchWorkflow(1, 'o/r', 'e2e.yml', 'main', {}, noSleep);
+    expect(polled.workflow_run_id).toBe(22);
+    expect(calls.at(-1)).toMatch(
+      /\/actions\/workflows\/e2e\.yml\/runs\?event=workflow_dispatch&branch=main&created=/,
+    );
+    server.close();
+  });
+});
+
+describe('resolveDispatchInputs', () => {
+  it('treats empty as absent, drops stale defaults, rejects unknown caller keys', async () => {
+    const { resolveDispatchInputs } = await import('../src/index');
+    const declared = {
+      env: { type: 'choice' as const, required: true, options: ['a', 'b'], default: 'a' },
+      n: { type: 'number' as const, required: false, default: 0 },
+    };
+    expect(resolveDispatchInputs(declared, { gone: 'x' }, { env: '' })).toEqual({
+      inputs: { env: 'a', n: '0' },
+      errors: [],
+    });
+    expect(resolveDispatchInputs(declared, {}, { nope: '1', n: 'abc' }).errors).toEqual([
+      '"nope" is not an input of this workflow',
+      '"n" must be a number',
+    ]);
+  });
+});

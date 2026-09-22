@@ -159,8 +159,9 @@ async function onWorkflowRun(
     // row already stamped with this attempt; otherwise the newest unstamped
     // one, which a rerun creates before its first delivery arrives.
     .orderBy(
-      sql`${schema.runs.githubRunAttempt} = ${wr.run_attempt} desc nulls last`,
-      sql`${schema.runs.githubRunAttempt} is null desc`,
+      sql`case when ${schema.runs.githubRunAttempt} = ${wr.run_attempt} then 2
+               when ${schema.runs.githubRunAttempt} is null then 1
+               else 0 end desc`,
       sql`${schema.runs.queuedAt} desc`,
     )
     .limit(1);

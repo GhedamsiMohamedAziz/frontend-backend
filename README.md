@@ -5,12 +5,14 @@ Actions; EyesOnBug owns everything around them — live runs, searchable history
 rich reports, metrics, and the triage decisions that turn a wall of red into a
 short list of things to fix.
 
-**Status: M0–M2.** A real Playwright suite in `examples/demo-e2e` runs and
+**Status: M0–M3.** A real Playwright suite in `examples/demo-e2e` runs and
 streams its results as they happen: the run is watchable live — progress, ETA,
 per-configuration lanes, failures appearing with a screenshot the moment they
 occur — and becomes a full report when it ends, with failures grouped by cause
-and every artifact attached. The remaining adapters, the GitHub App, metrics and
-triage follow in M3–M5.
+and every artifact attached. With the GitHub App installed, runs are launched
+from here — by hand from a generated form or on a schedule — re-run, cancelled
+for real, and gated: a quality gate becomes a commit check GitHub can require.
+The remaining adapters, metrics and triage follow in M4–M5.
 
 ---
 
@@ -44,6 +46,28 @@ development shortcut, gated on `NODE_ENV=development` **and** an explicit
 To use real OAuth instead, register a GitHub OAuth app with the callback
 `http://localhost:4000/v1/auth/github/callback` and set
 `GITHUB_OAUTH_CLIENT_ID` / `GITHUB_OAUTH_CLIENT_SECRET`.
+
+### Connecting GitHub (M3)
+
+Launching, re-running, cancelling and gating runs go through a GitHub App
+(ADR-011). Create one at **Settings → Developer settings → GitHub Apps** with:
+
+| Setting        | Value                                                                                            |
+| -------------- | ------------------------------------------------------------------------------------------------ |
+| Webhook URL    | `https://<your api>/v1/webhooks/github` (locally, a tunnel to `:4000`)                           |
+| Webhook secret | anything; copy it to `GITHUB_WEBHOOK_SECRET`                                                     |
+| Setup URL      | `https://<your web>/github/setup`, with "Redirect on update" ticked                              |
+| Permissions    | Actions **write**, Checks **write**, Contents **read**, Metadata **read**, Issues **write** (M5) |
+| Subscribe to   | Installation, Installation repositories, Workflow run                                            |
+
+Then set `GITHUB_APP_ID`, `GITHUB_APP_SLUG`, `GITHUB_APP_PRIVATE_KEY` (the PEM,
+or the PEM base64-encoded on one line) and `GITHUB_WEBHOOK_SECRET`, restart,
+and use **Org settings → GitHub → Install** while signed in with GitHub. Only
+the GitHub user who installs the App can link it to an organization
+(ADR-024), so the dev-login accounts cannot complete this step.
+
+Without these variables everything else works and the GitHub routes answer
+`503 github_not_configured`.
 
 ### Where things are
 
@@ -216,10 +240,15 @@ App, so that — and Rerun — arrive in M3 (ADR-021).
 - A streaming Playwright reporter, batches processed as they land, and a live
   run view over SSE with progress, ETA, per-configuration lanes and a failure
   rail
+- The GitHub back office: an App installed per organization, run templates
+  whose launcher form is generated from the workflow's `workflow_dispatch`
+  inputs, manual and scheduled dispatch, rerun (all or failed jobs), hard
+  cancel, and quality gates reported as check runs on the commit. Webhooks are
+  verified over the raw body and folded idempotently by GitHub's own ids
 
 **Not yet built:** the remaining adapters (JUnit, Cucumber, Allure, WDIO,
-Cypress), the GitHub App with run triggering, rerun and hard cancel (M3),
-metrics screens (M4), and the triage inbox (M5).
+Cypress), metrics screens (M4), the triage inbox, notifications and bug
+creation (M5).
 
 **Known gap in the demo data:** the _seeded_ runs include attachment rows whose
 S3 objects do not exist. Runs uploaded by the reporter have real artifacts.

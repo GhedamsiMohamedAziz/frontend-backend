@@ -157,18 +157,47 @@ export class GitHubApp {
     );
   }
 
+  /**
+   * github.com answers a dispatch with 200 and the new run's id (verified
+   * 2026-09-22). An older GitHub Enterprise answers 204 with nothing, so when
+   * the body is empty we poll the workflow's runs for the one that appeared
+   * after we asked. piggy: 5 × 2s; make it configurable if GHES users report
+   * misses under load.
+   */
   async dispatchWorkflow(
     installationId: number,
     repo: string,
     workflowFile: string,
     ref: string,
     inputs: Record<string, string>,
+    sleep: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms)),
   ): Promise<DispatchResult> {
-    return this.asInstallation<DispatchResult>(
+    const since = new Date(Date.now() - 1000).toISOString();
+    const workflow = encodeURIComponent(workflowFile);
+    const direct = await this.asInstallation<DispatchResult | undefined>(
       installationId,
       'POST',
-      `/repos/${repo}/actions/workflows/${encodeURIComponent(workflowFile)}/dispatches`,
+      `/repos/${repo}/actions/workflows/${workflow}/dispatches`,
       { body: { ref, inputs } },
+    );
+    if (direct?.workflow_run_id) return direct;
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      await sleep(2_000);
+      const page = await this.asInstallation<{
+        workflow_runs: Array<{ id: number; url: string; html_url: string }>;
+      }>(
+        installationId,
+        'GET',
+        `/repos/${repo}/actions/workflows/${workflow}/runs?event=workflow_dispatch&branch=${encodeURIComponent(ref)}&created=${encodeURIComponent(`>=${since}`)}&per_page=1`,
+      );
+      const run = page.workflow_runs[0];
+      if (run) return { workflow_run_id: run.id, run_url: run.url, html_url: run.html_url };
+    }
+    throw new GitHubApiError(
+      202,
+      `/repos/${repo}/actions/workflows/${workflow}/dispatches`,
+      'GitHub accepted the dispatch but no workflow run appeared within 10 seconds',
     );
   }
 

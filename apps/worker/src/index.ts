@@ -6,7 +6,7 @@ const schemaRuns = schema.runs;
 import { config } from './config';
 import { logger } from './logger';
 import { QUEUE_NAMES, createQueue, createRedis } from './queues';
-import { runMaintenance, type MaintenanceJob } from './jobs/maintenance';
+import { reapStaleRuns, runMaintenance, type MaintenanceJob } from './jobs/maintenance';
 import { processRun, RunLockedError, type IngestJob } from './jobs/ingest';
 import { processGithubEvent, type GitHubJob } from './jobs/github';
 import { evaluateGate } from './jobs/gates';
@@ -110,6 +110,13 @@ async function main(): Promise<void> {
       if (job.data.task === 'tick-schedules') {
         const result = await tickSchedules(system, tenant, github);
         if (result.dispatched || result.skipped) logger.info(result, 'schedule tick');
+        return;
+      }
+      if (job.data.task === 'reap-stale-runs') {
+        // Reaping seals runs; each one still owes its gate verdict.
+        const reaped = await reapStaleRuns(system);
+        if (reaped.length > 0) logger.warn({ reaped: reaped.length }, 'stale runs marked errored');
+        for (const runId of reaped) await evaluateGate(system, tenant, github, runId, cfg.WEB_URL);
         return;
       }
       await runMaintenance(system, job.data);

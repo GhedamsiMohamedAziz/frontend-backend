@@ -35,10 +35,17 @@ export async function tickSchedules(
   let skipped = 0;
   for (const schedule of due) {
     // The claim: only the worker whose UPDATE sees the old `next_run_at` wins.
-    const next = nextCronRun(schedule.cron, schedule.timezone, now);
+    let next: Date;
+    try {
+      next = nextCronRun(schedule.cron, schedule.timezone, now);
+    } catch (error) {
+      skipped += 1;
+      logger.error({ scheduleId: schedule.id, err: error }, 'schedule has an invalid cron');
+      continue;
+    }
     const claimed = await system.db
       .update(schema.schedules)
-      .set({ nextRunAt: next, lastRunAt: now })
+      .set({ nextRunAt: next })
       .where(
         and(
           eq(schema.schedules.id, schedule.id),
@@ -50,8 +57,13 @@ export async function tickSchedules(
 
     try {
       const ok = await dispatchSchedule(system, tenant, github, schedule);
-      if (ok) dispatched += 1;
-      else skipped += 1;
+      if (ok) {
+        dispatched += 1;
+        await system.db
+          .update(schema.schedules)
+          .set({ lastRunAt: now })
+          .where(eq(schema.schedules.id, schedule.id));
+      } else skipped += 1;
     } catch (error) {
       // One broken schedule must not stop the others; it is retried next time
       // its cron fires, and the failure is in the log with its id.
@@ -81,7 +93,12 @@ async function dispatchSchedule(
   const [config] = await system.db
     .select()
     .from(schema.workflowConfigs)
-    .where(eq(schema.workflowConfigs.id, schedule.workflowConfigId))
+    .where(
+      and(
+        eq(schema.workflowConfigs.id, schedule.workflowConfigId),
+        eq(schema.workflowConfigs.projectId, schedule.projectId),
+      ),
+    )
     .limit(1);
   if (!config?.enabled) return false;
 
