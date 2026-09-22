@@ -9,9 +9,18 @@ export interface GitHubJob {
   payload: unknown;
 }
 
+/** Where the installer of a not-yet-linked installation is remembered. */
+export interface InstallerStore {
+  set(key: string, value: string, ttlSeconds: number): Promise<unknown>;
+}
+export const INSTALLER_TTL_SECONDS = 7 * 24 * 3600;
+export const installerKey = (installationId: number): string =>
+  `github:installer:${installationId}`;
+
 interface InstallationPayload {
   action: string;
   installation: { id: number; suspended_at?: string | null };
+  sender?: { id: number };
   repositories_added?: Array<{ full_name: string }>;
   repositories_removed?: Array<{ full_name: string }>;
 }
@@ -44,11 +53,12 @@ export async function processGithubEvent(
   system: SystemDb,
   tenant: TenantDb,
   job: GitHubJob,
+  installers: InstallerStore,
 ): Promise<void> {
   switch (job.event) {
     case 'installation':
     case 'installation_repositories':
-      return onInstallation(system, tenant, job.payload as InstallationPayload);
+      return onInstallation(system, tenant, job.payload as InstallationPayload, installers);
     case 'workflow_run':
       return onWorkflowRun(system, tenant, job.payload as WorkflowRunPayload);
     default:
@@ -60,7 +70,19 @@ async function onInstallation(
   system: SystemDb,
   tenant: TenantDb,
   payload: InstallationPayload,
+  installers: InstallerStore,
 ): Promise<void> {
+  // `created` arrives before any org has linked the installation. Remember
+  // who installed it: linking is allowed only to that GitHub user (ADR-024).
+  if (payload.action === 'created' && payload.sender) {
+    await installers.set(
+      installerKey(payload.installation.id),
+      String(payload.sender.id),
+      INSTALLER_TTL_SECONDS,
+    );
+    return;
+  }
+
   const rows = await system.db
     .select({
       organizationId: schema.githubInstallations.organizationId,
@@ -69,8 +91,6 @@ async function onInstallation(
     .from(schema.githubInstallations)
     .where(eq(schema.githubInstallations.installationId, payload.installation.id))
     .limit(1);
-  // `created` arrives before the admin has linked the installation to an org;
-  // the link itself is made through the API, which reads GitHub directly.
   const row = rows[0];
   if (!row) return;
 
@@ -135,40 +155,51 @@ async function onWorkflowRun(
     })
     .from(schema.runs)
     .where(eq(schema.runs.githubWorkflowRunId, wr.id))
-    // A rerun creates a new attempt; the newest Run row for this workflow run
-    // is the one this delivery is about.
-    .orderBy(sql`${schema.runs.queuedAt} desc`)
+    // A rerun keeps the workflow run id and bumps `run_attempt`. Prefer the
+    // row already stamped with this attempt; otherwise the newest unstamped
+    // one, which a rerun creates before its first delivery arrives.
+    .orderBy(
+      sql`${schema.runs.githubRunAttempt} = ${wr.run_attempt} desc nulls last`,
+      sql`${schema.runs.githubRunAttempt} is null desc`,
+      sql`${schema.runs.queuedAt} desc`,
+    )
     .limit(1);
   const run = rows[0];
   if (!run) return;
 
-  const status = nextStatus(payload, run.status, run.totals.total);
-  const patch: Partial<typeof schema.runs.$inferInsert> = {
-    branch: wr.head_branch,
-    commitSha: wr.head_sha,
-    commitMessage: wr.head_commit?.message ?? null,
-    commitAuthor: wr.head_commit?.author?.name ?? null,
-    githubWorkflowName: wr.name,
-    githubRunAttempt: wr.run_attempt,
-  };
-  if (status && status !== run.status) {
-    patch.status = status;
-    if (status === 'running') patch.startedAt = new Date(wr.run_started_at ?? wr.updated_at);
-    if (TERMINAL_RUN_STATUSES.includes(status)) patch.finishedAt = new Date(wr.updated_at);
-  }
-
-  await tenant.withOrg({ organizationId: run.organizationId }, (tx) =>
-    tx
+  await tenant.withOrg({ organizationId: run.organizationId }, async (tx) => {
+    // What GitHub knows and we may not: always worth recording, even after
+    // the reporter sealed the run (its `completed` delivery usually lands last).
+    await tx
       .update(schema.runs)
-      .set(patch)
+      .set({
+        branch: wr.head_branch,
+        commitSha: wr.head_sha,
+        commitMessage: wr.head_commit?.message ?? null,
+        commitAuthor: wr.head_commit?.author?.name ?? null,
+        githubWorkflowName: wr.name,
+        githubRunAttempt: wr.run_attempt,
+      })
+      .where(eq(schema.runs.id, run.id));
+
+    const status = nextStatus(payload, run.status, run.totals.total);
+    if (!status || status === run.status) return;
+    await tx
+      .update(schema.runs)
+      .set({
+        status,
+        ...(status === 'running'
+          ? { startedAt: new Date(wr.run_started_at ?? wr.updated_at) }
+          : { finishedAt: new Date(wr.updated_at) }),
+      })
       .where(
         and(
           eq(schema.runs.id, run.id),
           // Never reopen a run the reporter already sealed.
           not(inArray(schema.runs.status, [...TERMINAL_RUN_STATUSES])),
         ),
-      ),
-  );
+      );
+  });
 }
 
 function nextStatus(

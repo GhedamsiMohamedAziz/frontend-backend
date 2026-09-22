@@ -62,7 +62,9 @@ async function main(): Promise<void> {
   const githubWorker = new Worker<GitHubJob>(
     QUEUE_NAMES.github,
     async (job: Job<GitHubJob>) => {
-      await processGithubEvent(system, tenant, job.data);
+      await processGithubEvent(system, tenant, job.data, {
+        set: (key, value, ttl) => connection.set(key, value, 'EX', ttl),
+      });
     },
     { connection, concurrency: 4 },
   );

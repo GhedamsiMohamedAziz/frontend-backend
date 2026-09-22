@@ -37,7 +37,7 @@ const repoFullNameSchema = z
   .regex(/^[\w.-]+\/[\w.-]+$/, 'Expected owner/repo');
 
 /** Workflow files live under .github/workflows; GitHub identifies them by basename. */
-const workflowFileSchema = z
+export const workflowFileSchema = z
   .string()
   .trim()
   .regex(/^[\w.-]+\.ya?ml$/, 'Expected a workflow file name such as e2e.yml');

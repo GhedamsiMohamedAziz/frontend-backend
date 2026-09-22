@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { eq } from 'drizzle-orm';
 import { SystemDb, TenantDb, schema } from '@eyesonbug/db';
-import { processGithubEvent } from '../src/jobs/github';
+import { installerKey, processGithubEvent } from '../src/jobs/github';
 
 /**
  * Webhook deliveries are folded by GitHub's own ids, so a redelivery must be
@@ -16,6 +16,12 @@ describe('github event processing', () => {
   let organizationId: string;
   let projectId: string;
   let runId: string;
+  const stored = new Map<string, string>();
+  const installers = {
+    set: async (key: string, value: string) => void stored.set(key, value),
+  };
+  const handle = (job: Parameters<typeof processGithubEvent>[2]) =>
+    processGithubEvent(system, tenant, job, installers);
 
   beforeAll(async () => {
     system = new SystemDb({
@@ -81,8 +87,17 @@ describe('github event processing', () => {
       .where(eq(schema.runs.id, runId))
       .then((rows) => rows[0]!);
 
+  it('remembers who installed the App, before any org has linked it', async () => {
+    await handle({
+      event: 'installation',
+      deliveryId: 'd-0',
+      payload: { action: 'created', installation: { id: 123 }, sender: { id: 98765 } },
+    });
+    expect(stored.get(installerKey(123))).toBe('98765');
+  });
+
   it('tracks repositories added to and removed from the installation', async () => {
-    await processGithubEvent(system, tenant, {
+    await handle({
       event: 'installation_repositories',
       deliveryId: 'd-1',
       payload: {
@@ -100,13 +115,13 @@ describe('github event processing', () => {
 
   it('suspends and unsuspends', async () => {
     const suspend = { installation: { id: INSTALLATION_ID } };
-    await processGithubEvent(system, tenant, {
+    await handle({
       event: 'installation',
       deliveryId: 'd-2',
       payload: { action: 'suspend', ...suspend },
     });
     expect((await installation())?.suspendedAt).toBeInstanceOf(Date);
-    await processGithubEvent(system, tenant, {
+    await handle({
       event: 'installation',
       deliveryId: 'd-3',
       payload: { action: 'unsuspend', ...suspend },
@@ -116,7 +131,7 @@ describe('github event processing', () => {
 
   it('ignores an installation no organization has linked', async () => {
     await expect(
-      processGithubEvent(system, tenant, {
+      handle({
         event: 'installation',
         deliveryId: 'd-4',
         payload: { action: 'deleted', installation: { id: 1 } },
@@ -146,7 +161,7 @@ describe('github event processing', () => {
   });
 
   it('fills the run from workflow_run and moves queued → running', async () => {
-    await processGithubEvent(system, tenant, workflowRun('in_progress'));
+    await handle(workflowRun('in_progress'));
     const row = await run();
     expect(row.status).toBe('running');
     expect(row.branch).toBe('feat/checkout');
@@ -157,14 +172,15 @@ describe('github event processing', () => {
   });
 
   it('marks a run that never reported as errored when the job fails', async () => {
-    await processGithubEvent(system, tenant, workflowRun('completed', { conclusion: 'failure' }));
+    await handle(workflowRun('completed', { conclusion: 'failure' }));
     expect((await run()).status).toBe('errored');
   });
 
-  it('never reopens a sealed run', async () => {
-    await processGithubEvent(system, tenant, workflowRun('in_progress', { head_sha: 'later' }));
+  it('never reopens a sealed run, but still records what GitHub knows', async () => {
+    await handle(workflowRun('in_progress', { head_sha: 'later', run_attempt: 2 }));
     const row = await run();
     expect(row.status).toBe('errored');
-    expect(row.commitSha).toBe('abc123');
+    expect(row.commitSha).toBe('later');
+    expect(row.githubRunAttempt).toBe(2);
   });
 });

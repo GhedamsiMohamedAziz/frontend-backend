@@ -7,6 +7,8 @@ import type { Server } from 'node:http';
 import { eq } from 'drizzle-orm';
 import { SystemDb, schema } from '@eyesonbug/db';
 import { signWebhookBody } from '@eyesonbug/shared/node';
+import IORedis from 'ioredis';
+import { installerKey } from '../src/github/github.service';
 
 /**
  * The GitHub back office against a fake GitHub.
@@ -120,6 +122,7 @@ describe('GitHub back office', () => {
   let server: Server;
   let github: Awaited<ReturnType<typeof fakeGithub>>;
   let system: SystemDb;
+  let redis: IORedis;
 
   const login = async (email: string) => {
     const agent = request.agent(server);
@@ -151,6 +154,7 @@ describe('GitHub back office', () => {
         'postgres://eyesonbug:eyesonbug@localhost:5432/eyesonbug',
       max: 2,
     });
+    redis = new IORedis(process.env.REDIS_URL ?? 'redis://localhost:6379');
   });
 
   afterAll(async () => {
@@ -161,6 +165,8 @@ describe('GitHub back office', () => {
     await system.db
       .delete(schema.githubInstallations)
       .where(eq(schema.githubInstallations.installationId, INSTALLATION_ID));
+    await redis.del(installerKey(INSTALLATION_ID));
+    redis.disconnect();
     await system.close();
     await app.close();
     github.server.close();
@@ -183,14 +189,41 @@ describe('GitHub back office', () => {
 
   it('refuses to link an installation GitHub does not know', async () => {
     const admin = await login('demo@eyesonbug.dev');
+    const [demo] = await system.db
+      .select({ githubUserId: schema.users.githubUserId })
+      .from(schema.users)
+      .where(eq(schema.users.email, 'demo@eyesonbug.dev'));
+    await redis.set(installerKey(999), String(demo!.githubUserId));
     const response = await admin
       .post('/v1/o/acme-retail/github/installation')
       .send({ installationId: 999 });
     expect(response.status).toBe(404);
+    await redis.del(installerKey(999));
+  });
+
+  it('refuses to link an installation the caller did not install', async () => {
+    const admin = await login('demo@eyesonbug.dev');
+    // GitHub knows the installation, but no `installation.created` webhook
+    // named this user as its installer.
+    const unknown = await admin
+      .post('/v1/o/acme-retail/github/installation')
+      .send({ installationId: INSTALLATION_ID });
+    expect(unknown.status).toBe(403);
+
+    await redis.set(installerKey(INSTALLATION_ID), '1');
+    const someoneElse = await admin
+      .post('/v1/o/acme-retail/github/installation')
+      .send({ installationId: INSTALLATION_ID });
+    expect(someoneElse.status).toBe(403);
   });
 
   it('links an installation after verifying it as the App', async () => {
     const admin = await login('demo@eyesonbug.dev');
+    const [demo] = await system.db
+      .select({ githubUserId: schema.users.githubUserId })
+      .from(schema.users)
+      .where(eq(schema.users.email, 'demo@eyesonbug.dev'));
+    await redis.set(installerKey(INSTALLATION_ID), String(demo!.githubUserId));
     const response = await admin
       .post('/v1/o/acme-retail/github/installation')
       .send({ installationId: INSTALLATION_ID });

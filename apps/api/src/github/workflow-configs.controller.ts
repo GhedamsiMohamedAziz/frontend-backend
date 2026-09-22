@@ -159,7 +159,7 @@ export class WorkflowConfigsController {
     const config = await this.load(access, id);
     if (!config.enabled) throw ApiError.conflict('This template is disabled');
     const installation = await this.github.requireInstallation(access.organizationId);
-    this.github.assertRepoAccess(installation, config.repoFullName);
+    const repo = this.github.assertRepoAccess(installation, config.repoFullName);
 
     const { inputs, errors } = resolveDispatchInputs(
       config.inputsSchema as WorkflowInputs,
@@ -171,13 +171,7 @@ export class WorkflowConfigsController {
     const ref = body.ref ?? config.ref;
     const dispatched = await this.github
       .client()
-      .dispatchWorkflow(
-        installation.installationId,
-        config.repoFullName,
-        config.workflowFile,
-        ref,
-        inputs,
-      )
+      .dispatchWorkflow(installation.installationId, repo, config.workflowFile, ref, inputs)
       .catch((error: unknown) => {
         if (error instanceof GitHubApiError && error.status === 422) {
           throw ApiError.badRequest(`GitHub refused the dispatch: ${error.message}`);
@@ -226,10 +220,10 @@ export class WorkflowConfigsController {
     file: string,
     ref: string,
   ): Promise<WorkflowInputs> {
-    this.github.assertRepoAccess(installation, repo);
+    const fullName = this.github.assertRepoAccess(installation, repo);
     const source = await this.github
       .client()
-      .getFile(installation.installationId, repo, `.github/workflows/${file}`, ref)
+      .getFile(installation.installationId, fullName, `.github/workflows/${file}`, ref)
       .catch((error: unknown) => {
         if (error instanceof GitHubApiError && error.status === 404) {
           throw ApiError.notFound(`Workflow ${file} at ${ref}`);

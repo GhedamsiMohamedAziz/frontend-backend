@@ -1,9 +1,27 @@
-import { Body, Controller, Delete, Get, Inject, Param, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpStatus,
+  Inject,
+  Param,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { eq } from 'drizzle-orm';
 import { parse as parseYaml } from 'yaml';
 import { TenantDb, schema } from '@eyesonbug/db';
-import { type LinkInstallationInput, linkInstallationSchema } from '@eyesonbug/shared';
+import {
+  type LinkInstallationInput,
+  linkInstallationSchema,
+  workflowFileSchema,
+} from '@eyesonbug/shared';
+import { CurrentUser } from '../auth/current-user.decorator';
+import type { SessionUser } from '../auth/session.service';
+import { SYSTEM_DB } from '../database/database.module';
+import { SystemDb } from '@eyesonbug/db';
 import { extractDispatchInputs, GitHubApiError } from '@eyesonbug/shared/node';
 import { Access, AccessGuard, RequireOrgRole } from '../access/access.guard';
 import { ApiError } from '../common/errors';
@@ -26,13 +44,21 @@ export class GitHubController {
   constructor(
     private readonly github: GitHubService,
     @Inject(TENANT_DB) private readonly tenant: TenantDb,
+    @Inject(SYSTEM_DB) private readonly system: SystemDb,
   ) {}
 
   @Get('install-url')
   @ApiOperation({ summary: 'Where to send an admin to install the App for this org' })
   installUrl(@Access() access: AccessContext): { url: string } {
     const config = env();
-    if (!config.GITHUB_APP_SLUG) this.github.client(); // throws the 503
+    this.github.client();
+    if (!config.GITHUB_APP_SLUG) {
+      throw new ApiError(
+        'github_not_configured',
+        'Set GITHUB_APP_SLUG to build the install URL',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
     // `state` comes back on the setup redirect, so the web app knows which org
     // to link the new installation to.
     return {
@@ -47,17 +73,38 @@ export class GitHubController {
   }
 
   /**
-   * Link an installation after GitHub's setup redirect. The id is verified
-   * against GitHub as the App before anything is stored: a guessed id must not
-   * let one tenant borrow another's repositories.
+   * Link an installation after GitHub's setup redirect.
+   *
+   * The App JWT can describe every installation of the App, so "GitHub knows
+   * this id" proves nothing. Ownership is proven by identity: the caller must
+   * be the GitHub user who performed the install, as reported by the
+   * `installation.created` webhook. A guessed id therefore cannot let one
+   * tenant borrow another's repositories.
    */
   @Post('installation')
   @ApiOperation({ summary: 'Link a GitHub App installation to this org' })
   async link(
     @Access() access: AccessContext,
+    @CurrentUser() user: SessionUser,
     @Body(zodPipe(linkInstallationSchema)) body: LinkInstallationInput,
   ) {
     const app = this.github.client();
+    const [caller] = await this.system.db
+      .select({ githubUserId: schema.users.githubUserId })
+      .from(schema.users)
+      .where(eq(schema.users.id, user.id))
+      .limit(1);
+    if (!caller?.githubUserId) {
+      throw ApiError.forbidden('Sign in with GitHub to link an installation');
+    }
+    const installer = await this.github.installerOf(body.installationId);
+    if (installer !== caller.githubUserId) {
+      throw ApiError.forbidden(
+        installer === null
+          ? 'GitHub has not reported this installation yet. If it was installed more than a week ago, reinstall the App.'
+          : 'Only the GitHub user who installed the App can link it',
+      );
+    }
     const remote = await app.getInstallation(body.installationId).catch((error: unknown) => {
       if (error instanceof GitHubApiError && error.status === 404) {
         throw ApiError.notFound('GitHub installation');
@@ -81,10 +128,13 @@ export class GitHubController {
       await tx
         .delete(schema.githubInstallations)
         .where(eq(schema.githubInstallations.organizationId, access.organizationId));
-      const [row] = await tx.insert(schema.githubInstallations).values(values).returning({
-        id: schema.githubInstallations.id,
-      });
-      return { id: row!.id, ...values };
+      const [row] = await tx
+        .insert(schema.githubInstallations)
+        .values(values)
+        .onConflictDoNothing({ target: schema.githubInstallations.installationId })
+        .returning({ id: schema.githubInstallations.id });
+      if (!row) throw ApiError.conflict('This installation is linked to another organization');
+      return { id: row.id, ...values };
     });
   }
 
@@ -118,9 +168,8 @@ export class GitHubController {
     @Param('owner') owner: string,
     @Param('repo') repo: string,
   ) {
-    const fullName = `${owner}/${repo}`;
     const installation = await this.github.requireInstallation(access.organizationId);
-    this.github.assertRepoAccess(installation, fullName);
+    const fullName = this.github.assertRepoAccess(installation, `${owner}/${repo}`);
     const workflows = await this.github
       .client()
       .listWorkflows(installation.installationId, fullName);
@@ -146,12 +195,19 @@ export class GitHubController {
     @Param('repo') repo: string,
     @Param('file') file: string,
   ) {
-    const fullName = `${owner}/${repo}`;
+    const parsedFile = workflowFileSchema.safeParse(file);
+    if (!parsedFile.success)
+      throw ApiError.badRequest('Expected a workflow file name such as e2e.yml');
     const installation = await this.github.requireInstallation(access.organizationId);
-    this.github.assertRepoAccess(installation, fullName);
+    const fullName = this.github.assertRepoAccess(installation, `${owner}/${repo}`);
     const source = await this.github
       .client()
-      .getFile(installation.installationId, fullName, `.github/workflows/${file}`, 'HEAD');
+      .getFile(
+        installation.installationId,
+        fullName,
+        `.github/workflows/${parsedFile.data}`,
+        'HEAD',
+      );
     let doc: unknown;
     try {
       doc = parseYaml(source);

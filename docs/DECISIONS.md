@@ -286,3 +286,20 @@ redelivery is a no-op. A `workflow_run` never reopens a run the reporter has
 sealed, and only moves a run that reported nothing to a terminal state.
 **Consequence:** unknown events are acknowledged and dropped; anything worth
 auditing is visible in GitHub's own delivery log.
+
+### ADR-024 — Linking an installation requires being its installer
+
+**Status:** accepted (2026-09-22) · **Context:** the App JWT can describe
+_every_ installation of the App, so "GitHub returned 200 for this id" is not
+proof that the caller may act through it. Installation ids are small
+sequential integers; an org admin could claim an unlinked installation of a
+stranger's GitHub org and read its private workflows. **Options:** (A) keep
+each user's OAuth token and check `GET /user/installations`; (B) record the
+installer from the `installation.created` webhook (`sender.id`) and require
+the linking user's `github_user_id` to match. **Decision:** B. We never store
+user OAuth tokens (login only needs identity), and the webhook already carries
+the installer. The mapping lives in Redis with a seven-day TTL; an admin who
+comes back later reinstalls, which re-sends the webhook. **Consequence:** a
+dev-login user (no GitHub identity) cannot link an installation, and the
+`github_installation.installation_id` unique index turns a second org's claim
+on an already-linked installation into a 409 rather than a takeover.

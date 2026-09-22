@@ -151,7 +151,7 @@ export class GitHubApp {
     return this.asInstallation<string>(
       installationId,
       'GET',
-      `/repos/${repo}/contents/${path}?ref=${encodeURIComponent(ref)}`,
+      `/repos/${repo}/contents/${path.split('/').map(encodeURIComponent).join('/')}?ref=${encodeURIComponent(ref)}`,
       { accept: 'application/vnd.github.raw+json' },
     );
   }
