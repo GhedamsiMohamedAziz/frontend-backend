@@ -1,0 +1,1217 @@
+{
+  "config": {
+    "argv": [
+      "/opt/homebrew/Cellar/node/26.9.0/bin/node",
+      "/Users/oumaimamemmiche/Downloads/EyesOnBug/examples/demo-e2e/node_modules/.bin/playwright",
+      "test"
+    ],
+    "configFile": "/Users/oumaimamemmiche/Downloads/EyesOnBug/examples/demo-e2e/playwright.config.ts",
+    "rootDir": "/Users/oumaimamemmiche/Downloads/EyesOnBug/examples/demo-e2e/e2e",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": true,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 6
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/Users/oumaimamemmiche/Downloads/EyesOnBug/examples/demo-e2e/test-results",
+        "repeatEach": 1,
+        "retries": 1,
+        "metadata": {
+          "browser": "chromium",
+          "locale": "en-US",
+          "viewport": "1280x720"
+        },
+        "id": "chromium-en",
+        "name": "chromium-en",
+        "testDir": "/Users/oumaimamemmiche/Downloads/EyesOnBug/examples/demo-e2e/e2e",
+        "testIgnore": [],
+        "testMatch": ["**/*.@(spec|test).?(c|m)[jt]s?(x)"],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "/Users/oumaimamemmiche/Downloads/EyesOnBug/examples/demo-e2e/test-results",
+        "repeatEach": 1,
+        "retries": 1,
+        "metadata": {
+          "browser": "chromium",
+          "locale": "fr-FR",
+          "viewport": "1280x720"
+        },
+        "id": "chromium-fr",
+        "name": "chromium-fr",
+        "testDir": "/Users/oumaimamemmiche/Downloads/EyesOnBug/examples/demo-e2e/e2e",
+        "testIgnore": [],
+        "testMatch": ["**/*.@(spec|test).?(c|m)[jt]s?(x)"],
+        "timeout": 30000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      ["list", null],
+      [
+        "json",
+        {
+          "outputFile": "playwright-report.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.63.0",
+    "workers": 6,
+    "webServer": {
+      "command": "node server.mjs",
+      "url": "http://localhost:4310",
+      "reuseExistingServer": true,
+      "stdout": "ignore"
+    }
+  },
+  "suites": [
+    {
+      "title": "cart/cart.spec.ts",
+      "file": "cart/cart.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Shopping cart",
+          "file": "cart/cart.spec.ts",
+          "line": 3,
+          "column": 6,
+          "specs": [
+            {
+              "title": "adds an item",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium-en",
+                  "projectName": "chromium-en",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 633,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-22T09:23:40.709Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "2ea1132c93d537b08741-41eec269a0be671bd0dc",
+              "file": "cart/cart.spec.ts",
+              "line": 8,
+              "column": 3
+            },
+            {
+              "title": "removes an item when the quantity reaches zero",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium-en",
+                  "projectName": "chromium-en",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 650,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-22T09:23:40.709Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "2ea1132c93d537b08741-50219e9028f56c14e7b0",
+              "file": "cart/cart.spec.ts",
+              "line": 15,
+              "column": 3
+            },
+            {
+              "title": "updates the quantity",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium-en",
+                  "projectName": "chromium-en",
+                  "results": [
+                    {
+                      "workerIndex": 2,
+                      "parallelIndex": 2,
+                      "status": "failed",
+                      "duration": 2705,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  getByTestId('qty-p1')\nExpected: \u001b[32m\"3\"\u001b[39m\nReceived: \u001b[31m\"2\"\u001b[39m\nTimeout:  2000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveText\" getByTestId('qty-p1') with timeout 2000ms\u001b[22m\n\u001b[2m  - waiting for getByTestId('qty-p1')\u001b[22m\n\u001b[2m    21 × locator resolved to <span data-testid=\"qty-p1\">2</span>\u001b[22m\n\u001b[2m       - unexpected value \"2\"\u001b[22m\n",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  getByTestId('qty-p1')\nExpected: \u001b[32m\"3\"\u001b[39m\nReceived: \u001b[31m\"2\"\u001b[39m\nTimeout:  2000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveText\" getByTestId('qty-p1') with timeout 2000ms\u001b[22m\n\u001b[2m  - waiting for getByTestId('qty-p1')\u001b[22m\n\u001b[2m    21 × locator resolved to <span data-testid=\"qty-p1\">2</span>\u001b[22m\n\u001b[2m       - unexpected value \"2\"\u001b[22m\n\n    at /Users/oumaimamemmiche/Downloads/EyesOnBug/examples/demo-e2e/e2e/cart/cart.spec.ts:37:48",
+                        "location": {
+                          "file": "/Users/oumaimamemmiche/Downloads/EyesOnBug/examples/demo-e2e/e2e/cart/cart.spec.ts",
+                          "column": 48,
+                          "line": 37
+                        },
+                        "snippet": "  35 |     if (testInfo.retry === 0) {\n  36 |       // Stand-in for the race this test used to lose in CI.\n> 37 |       await expect(page.getByTestId('qty-p1')).toHaveText('3', { timeout: 2000 });\n     |                                                ^\n  38 |     }\n  39 |\n  40 |     await expect(page.getByTestId('qty-p1')).toHaveText('2');"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "/Users/oumaimamemmiche/Downloads/EyesOnBug/examples/demo-e2e/e2e/cart/cart.spec.ts",
+                            "column": 48,
+                            "line": 37
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  getByTestId('qty-p1')\nExpected: \u001b[32m\"3\"\u001b[39m\nReceived: \u001b[31m\"2\"\u001b[39m\nTimeout:  2000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveText\" getByTestId('qty-p1') with timeout 2000ms\u001b[22m\n\u001b[2m  - waiting for getByTestId('qty-p1')\u001b[22m\n\u001b[2m    21 × locator resolved to <span data-testid=\"qty-p1\">2</span>\u001b[22m\n\u001b[2m       - unexpected value \"2\"\u001b[22m\n\n\n  35 |     if (testInfo.retry === 0) {\n  36 |       // Stand-in for the race this test used to lose in CI.\n> 37 |       await expect(page.getByTestId('qty-p1')).toHaveText('3', { timeout: 2000 });\n     |                                                ^\n  38 |     }\n  39 |\n  40 |     await expect(page.getByTestId('qty-p1')).toHaveText('2');\n    at /Users/oumaimamemmiche/Downloads/EyesOnBug/examples/demo-e2e/e2e/cart/cart.spec.ts:37:48"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-22T09:23:40.703Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "/Users/oumaimamemmiche/Downloads/EyesOnBug/examples/demo-e2e/test-results/cart-cart-Shopping-cart-updates-the-quantity-chromium-en/test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "/Users/oumaimamemmiche/Downloads/EyesOnBug/examples/demo-e2e/test-results/cart-cart-Shopping-cart-updates-the-quantity-chromium-en/video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "/Users/oumaimamemmiche/Downloads/EyesOnBug/examples/demo-e2e/test-results/cart-cart-Shopping-cart-updates-the-quantity-chromium-en/error-context.md"
+                        },
+                        {
+                          "name": "trace",
+                          "contentType": "application/zip",
+                          "path": "/Users/oumaimamemmiche/Downloads/EyesOnBug/examples/demo-e2e/test-results/cart-cart-Shopping-cart-updates-the-quantity-chromium-en/trace.zip"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "/Users/oumaimamemmiche/Downloads/EyesOnBug/examples/demo-e2e/e2e/cart/cart.spec.ts",
+                        "column": 48,
+                        "line": 37
+                      }
+                    },
+                    {
+                      "workerIndex": 11,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 178,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 1,
+                      "startTime": "2026-09-22T09:23:44.038Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "flaky"
+                }
+              ],
+              "id": "2ea1132c93d537b08741-9e807b9498978ae3db0c",
+              "file": "cart/cart.spec.ts",
+              "line": 31,
+              "column": 3
+            },
+            {
+              "title": "is empty to begin with",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium-en",
+                  "projectName": "chromium-en",
+                  "results": [
+                    {
+                      "workerIndex": 3,
+                      "parallelIndex": 3,
+                      "status": "passed",
+                      "duration": 561,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-22T09:23:40.731Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "2ea1132c93d537b08741-bb898e93661c55b0a712",
+              "file": "cart/cart.spec.ts",
+              "line": 43,
+              "column": 3
+            },
+            {
+              "title": "adds an item",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium-fr",
+                  "projectName": "chromium-fr",
+                  "results": [
+                    {
+                      "workerIndex": 6,
+                      "parallelIndex": 5,
+                      "status": "passed",
+                      "duration": 358,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-22T09:23:42.399Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "2ea1132c93d537b08741-78690988a7a190923b38",
+              "file": "cart/cart.spec.ts",
+              "line": 8,
+              "column": 3
+            },
+            {
+              "title": "removes an item when the quantity reaches zero",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium-fr",
+                  "projectName": "chromium-fr",
+                  "results": [
+                    {
+                      "workerIndex": 7,
+                      "parallelIndex": 4,
+                      "status": "passed",
+                      "duration": 375,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-22T09:23:42.404Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "2ea1132c93d537b08741-9cddefd3f9684c4d3810",
+              "file": "cart/cart.spec.ts",
+              "line": 15,
+              "column": 3
+            },
+            {
+              "title": "updates the quantity",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium-fr",
+                  "projectName": "chromium-fr",
+                  "results": [
+                    {
+                      "workerIndex": 8,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 2446,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  getByTestId('qty-p1')\nExpected: \u001b[32m\"3\"\u001b[39m\nReceived: \u001b[31m\"2\"\u001b[39m\nTimeout:  2000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveText\" getByTestId('qty-p1') with timeout 2000ms\u001b[22m\n\u001b[2m  - waiting for getByTestId('qty-p1')\u001b[22m\n\u001b[2m    21 × locator resolved to <span data-testid=\"qty-p1\">2</span>\u001b[22m\n\u001b[2m       - unexpected value \"2\"\u001b[22m\n",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  getByTestId('qty-p1')\nExpected: \u001b[32m\"3\"\u001b[39m\nReceived: \u001b[31m\"2\"\u001b[39m\nTimeout:  2000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveText\" getByTestId('qty-p1') with timeout 2000ms\u001b[22m\n\u001b[2m  - waiting for getByTestId('qty-p1')\u001b[22m\n\u001b[2m    21 × locator resolved to <span data-testid=\"qty-p1\">2</span>\u001b[22m\n\u001b[2m       - unexpected value \"2\"\u001b[22m\n\n    at /Users/oumaimamemmiche/Downloads/EyesOnBug/examples/demo-e2e/e2e/cart/cart.spec.ts:37:48",
+                        "location": {
+                          "file": "/Users/oumaimamemmiche/Downloads/EyesOnBug/examples/demo-e2e/e2e/cart/cart.spec.ts",
+                          "column": 48,
+                          "line": 37
+                        },
+                        "snippet": "  35 |     if (testInfo.retry === 0) {\n  36 |       // Stand-in for the race this test used to lose in CI.\n> 37 |       await expect(page.getByTestId('qty-p1')).toHaveText('3', { timeout: 2000 });\n     |                                                ^\n  38 |     }\n  39 |\n  40 |     await expect(page.getByTestId('qty-p1')).toHaveText('2');"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "/Users/oumaimamemmiche/Downloads/EyesOnBug/examples/demo-e2e/e2e/cart/cart.spec.ts",
+                            "column": 48,
+                            "line": 37
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  getByTestId('qty-p1')\nExpected: \u001b[32m\"3\"\u001b[39m\nReceived: \u001b[31m\"2\"\u001b[39m\nTimeout:  2000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveText\" getByTestId('qty-p1') with timeout 2000ms\u001b[22m\n\u001b[2m  - waiting for getByTestId('qty-p1')\u001b[22m\n\u001b[2m    21 × locator resolved to <span data-testid=\"qty-p1\">2</span>\u001b[22m\n\u001b[2m       - unexpected value \"2\"\u001b[22m\n\n\n  35 |     if (testInfo.retry === 0) {\n  36 |       // Stand-in for the race this test used to lose in CI.\n> 37 |       await expect(page.getByTestId('qty-p1')).toHaveText('3', { timeout: 2000 });\n     |                                                ^\n  38 |     }\n  39 |\n  40 |     await expect(page.getByTestId('qty-p1')).toHaveText('2');\n    at /Users/oumaimamemmiche/Downloads/EyesOnBug/examples/demo-e2e/e2e/cart/cart.spec.ts:37:48"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-22T09:23:42.401Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "/Users/oumaimamemmiche/Downloads/EyesOnBug/examples/demo-e2e/test-results/cart-cart-Shopping-cart-updates-the-quantity-chromium-fr/test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "/Users/oumaimamemmiche/Downloads/EyesOnBug/examples/demo-e2e/test-results/cart-cart-Shopping-cart-updates-the-quantity-chromium-fr/video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "/Users/oumaimamemmiche/Downloads/EyesOnBug/examples/demo-e2e/test-results/cart-cart-Shopping-cart-updates-the-quantity-chromium-fr/error-context.md"
+                        },
+                        {
+                          "name": "trace",
+                          "contentType": "application/zip",
+                          "path": "/Users/oumaimamemmiche/Downloads/EyesOnBug/examples/demo-e2e/test-results/cart-cart-Shopping-cart-updates-the-quantity-chromium-fr/trace.zip"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "/Users/oumaimamemmiche/Downloads/EyesOnBug/examples/demo-e2e/e2e/cart/cart.spec.ts",
+                        "column": 48,
+                        "line": 37
+                      }
+                    },
+                    {
+                      "workerIndex": 7,
+                      "parallelIndex": 4,
+                      "status": "passed",
+                      "duration": 151,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 1,
+                      "startTime": "2026-09-22T09:23:44.983Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "flaky"
+                }
+              ],
+              "id": "2ea1132c93d537b08741-0c4fde38af4129c4228d",
+              "file": "cart/cart.spec.ts",
+              "line": 31,
+              "column": 3
+            },
+            {
+              "title": "is empty to begin with",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium-fr",
+                  "projectName": "chromium-fr",
+                  "results": [
+                    {
+                      "workerIndex": 9,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 312,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-22T09:23:42.399Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "2ea1132c93d537b08741-c9ab44f30f28175f9f24",
+              "file": "cart/cart.spec.ts",
+              "line": 43,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "checkout/checkout.spec.ts",
+      "file": "checkout/checkout.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Checkout",
+          "file": "checkout/checkout.spec.ts",
+          "line": 3,
+          "column": 6,
+          "specs": [
+            {
+              "title": "confirms an order",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium-en",
+                  "projectName": "chromium-en",
+                  "results": [
+                    {
+                      "workerIndex": 4,
+                      "parallelIndex": 4,
+                      "status": "passed",
+                      "duration": 1000,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-22T09:23:40.713Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "67cdc8a4402314feb5d5-ec17b24da5865ccbd3f2",
+              "file": "checkout/checkout.spec.ts",
+              "line": 8,
+              "column": 3
+            },
+            {
+              "title": "does nothing when the cart is empty",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium-en",
+                  "projectName": "chromium-en",
+                  "results": [
+                    {
+                      "workerIndex": 5,
+                      "parallelIndex": 5,
+                      "status": "passed",
+                      "duration": 601,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-22T09:23:40.707Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "67cdc8a4402314feb5d5-5146759c59004eb391b4",
+              "file": "checkout/checkout.spec.ts",
+              "line": 15,
+              "column": 3
+            },
+            {
+              "title": "shows prices in the local format",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium-en",
+                  "projectName": "chromium-en",
+                  "results": [
+                    {
+                      "workerIndex": 3,
+                      "parallelIndex": 3,
+                      "status": "passed",
+                      "duration": 326,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-22T09:23:41.688Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "67cdc8a4402314feb5d5-a052b2d7cc0ce217495c",
+              "file": "checkout/checkout.spec.ts",
+              "line": 29,
+              "column": 3
+            },
+            {
+              "title": "totals several items",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium-en",
+                  "projectName": "chromium-en",
+                  "results": [
+                    {
+                      "workerIndex": 5,
+                      "parallelIndex": 5,
+                      "status": "passed",
+                      "duration": 352,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-22T09:23:41.724Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "67cdc8a4402314feb5d5-fc78398d5b60a5c74762",
+              "file": "checkout/checkout.spec.ts",
+              "line": 40,
+              "column": 3
+            },
+            {
+              "title": "supports gift wrapping",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "location": {
+                        "file": "/Users/oumaimamemmiche/Downloads/EyesOnBug/examples/demo-e2e/e2e/checkout/checkout.spec.ts",
+                        "line": 48,
+                        "column": 8
+                      }
+                    }
+                  ],
+                  "expectedStatus": "skipped",
+                  "projectId": "chromium-en",
+                  "projectName": "chromium-en",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-22T09:23:41.757Z",
+                      "annotations": [
+                        {
+                          "type": "skip",
+                          "location": {
+                            "file": "/Users/oumaimamemmiche/Downloads/EyesOnBug/examples/demo-e2e/e2e/checkout/checkout.spec.ts",
+                            "line": 48,
+                            "column": 8
+                          }
+                        }
+                      ],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "67cdc8a4402314feb5d5-33ea10cca0321807f82d",
+              "file": "checkout/checkout.spec.ts",
+              "line": 48,
+              "column": 8
+            },
+            {
+              "title": "confirms an order",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium-fr",
+                  "projectName": "chromium-fr",
+                  "results": [
+                    {
+                      "workerIndex": 10,
+                      "parallelIndex": 3,
+                      "status": "passed",
+                      "duration": 560,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-22T09:23:42.467Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "67cdc8a4402314feb5d5-766c2cccdf81d0665eb3",
+              "file": "checkout/checkout.spec.ts",
+              "line": 8,
+              "column": 3
+            },
+            {
+              "title": "does nothing when the cart is empty",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium-fr",
+                  "projectName": "chromium-fr",
+                  "results": [
+                    {
+                      "workerIndex": 9,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 160,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-22T09:23:42.840Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "67cdc8a4402314feb5d5-98518f802126373cd7a9",
+              "file": "checkout/checkout.spec.ts",
+              "line": 15,
+              "column": 3
+            },
+            {
+              "title": "shows prices in the local format",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium-fr",
+                  "projectName": "chromium-fr",
+                  "results": [
+                    {
+                      "workerIndex": 6,
+                      "parallelIndex": 5,
+                      "status": "failed",
+                      "duration": 5271,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  getByTestId('price-p1')\nExpected: \u001b[32m\"49\u001b[7m,\u001b[27m90\u001b[7m €\u001b[27m\"\u001b[39m\nReceived: \u001b[31m\"\u001b[7m€\u001b[27m49\u001b[7m.\u001b[27m90\"\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveText\" getByTestId('price-p1') with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByTestId('price-p1')\u001b[22m\n\u001b[2m    14 × locator resolved to <span data-testid=\"price-p1\">€49.90</span>\u001b[22m\n\u001b[2m       - unexpected value \"€49.90\"\u001b[22m\n",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  getByTestId('price-p1')\nExpected: \u001b[32m\"49\u001b[7m,\u001b[27m90\u001b[7m €\u001b[27m\"\u001b[39m\nReceived: \u001b[31m\"\u001b[7m€\u001b[27m49\u001b[7m.\u001b[27m90\"\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveText\" getByTestId('price-p1') with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByTestId('price-p1')\u001b[22m\n\u001b[2m    14 × locator resolved to <span data-testid=\"price-p1\">€49.90</span>\u001b[22m\n\u001b[2m       - unexpected value \"€49.90\"\u001b[22m\n\n    at /Users/oumaimamemmiche/Downloads/EyesOnBug/examples/demo-e2e/e2e/checkout/checkout.spec.ts:34:27",
+                        "location": {
+                          "file": "/Users/oumaimamemmiche/Downloads/EyesOnBug/examples/demo-e2e/e2e/checkout/checkout.spec.ts",
+                          "column": 27,
+                          "line": 34
+                        },
+                        "snippet": "  32 |\n  33 |     if (locale.startsWith('fr')) {\n> 34 |       await expect(price).toHaveText('49,90 €');\n     |                           ^\n  35 |     } else {\n  36 |       await expect(price).toHaveText('$49.90');\n  37 |     }"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "/Users/oumaimamemmiche/Downloads/EyesOnBug/examples/demo-e2e/e2e/checkout/checkout.spec.ts",
+                            "column": 27,
+                            "line": 34
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  getByTestId('price-p1')\nExpected: \u001b[32m\"49\u001b[7m,\u001b[27m90\u001b[7m €\u001b[27m\"\u001b[39m\nReceived: \u001b[31m\"\u001b[7m€\u001b[27m49\u001b[7m.\u001b[27m90\"\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveText\" getByTestId('price-p1') with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByTestId('price-p1')\u001b[22m\n\u001b[2m    14 × locator resolved to <span data-testid=\"price-p1\">€49.90</span>\u001b[22m\n\u001b[2m       - unexpected value \"€49.90\"\u001b[22m\n\n\n  32 |\n  33 |     if (locale.startsWith('fr')) {\n> 34 |       await expect(price).toHaveText('49,90 €');\n     |                           ^\n  35 |     } else {\n  36 |       await expect(price).toHaveText('$49.90');\n  37 |     }\n    at /Users/oumaimamemmiche/Downloads/EyesOnBug/examples/demo-e2e/e2e/checkout/checkout.spec.ts:34:27"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-22T09:23:42.885Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "/Users/oumaimamemmiche/Downloads/EyesOnBug/examples/demo-e2e/test-results/checkout-checkout-Checkout-shows-prices-in-the-local-format-chromium-fr/test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "/Users/oumaimamemmiche/Downloads/EyesOnBug/examples/demo-e2e/test-results/checkout-checkout-Checkout-shows-prices-in-the-local-format-chromium-fr/video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "/Users/oumaimamemmiche/Downloads/EyesOnBug/examples/demo-e2e/test-results/checkout-checkout-Checkout-shows-prices-in-the-local-format-chromium-fr/error-context.md"
+                        },
+                        {
+                          "name": "trace",
+                          "contentType": "application/zip",
+                          "path": "/Users/oumaimamemmiche/Downloads/EyesOnBug/examples/demo-e2e/test-results/checkout-checkout-Checkout-shows-prices-in-the-local-format-chromium-fr/trace.zip"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "/Users/oumaimamemmiche/Downloads/EyesOnBug/examples/demo-e2e/e2e/checkout/checkout.spec.ts",
+                        "column": 27,
+                        "line": 34
+                      }
+                    },
+                    {
+                      "workerIndex": 7,
+                      "parallelIndex": 4,
+                      "status": "failed",
+                      "duration": 5259,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  getByTestId('price-p1')\nExpected: \u001b[32m\"49\u001b[7m,\u001b[27m90\u001b[7m €\u001b[27m\"\u001b[39m\nReceived: \u001b[31m\"\u001b[7m€\u001b[27m49\u001b[7m.\u001b[27m90\"\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveText\" getByTestId('price-p1') with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByTestId('price-p1')\u001b[22m\n\u001b[2m    14 × locator resolved to <span data-testid=\"price-p1\">€49.90</span>\u001b[22m\n\u001b[2m       - unexpected value \"€49.90\"\u001b[22m\n",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  getByTestId('price-p1')\nExpected: \u001b[32m\"49\u001b[7m,\u001b[27m90\u001b[7m €\u001b[27m\"\u001b[39m\nReceived: \u001b[31m\"\u001b[7m€\u001b[27m49\u001b[7m.\u001b[27m90\"\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveText\" getByTestId('price-p1') with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByTestId('price-p1')\u001b[22m\n\u001b[2m    14 × locator resolved to <span data-testid=\"price-p1\">€49.90</span>\u001b[22m\n\u001b[2m       - unexpected value \"€49.90\"\u001b[22m\n\n    at /Users/oumaimamemmiche/Downloads/EyesOnBug/examples/demo-e2e/e2e/checkout/checkout.spec.ts:34:27",
+                        "location": {
+                          "file": "/Users/oumaimamemmiche/Downloads/EyesOnBug/examples/demo-e2e/e2e/checkout/checkout.spec.ts",
+                          "column": 27,
+                          "line": 34
+                        },
+                        "snippet": "  32 |\n  33 |     if (locale.startsWith('fr')) {\n> 34 |       await expect(price).toHaveText('49,90 €');\n     |                           ^\n  35 |     } else {\n  36 |       await expect(price).toHaveText('$49.90');\n  37 |     }"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "/Users/oumaimamemmiche/Downloads/EyesOnBug/examples/demo-e2e/e2e/checkout/checkout.spec.ts",
+                            "column": 27,
+                            "line": 34
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  getByTestId('price-p1')\nExpected: \u001b[32m\"49\u001b[7m,\u001b[27m90\u001b[7m €\u001b[27m\"\u001b[39m\nReceived: \u001b[31m\"\u001b[7m€\u001b[27m49\u001b[7m.\u001b[27m90\"\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveText\" getByTestId('price-p1') with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByTestId('price-p1')\u001b[22m\n\u001b[2m    14 × locator resolved to <span data-testid=\"price-p1\">€49.90</span>\u001b[22m\n\u001b[2m       - unexpected value \"€49.90\"\u001b[22m\n\n\n  32 |\n  33 |     if (locale.startsWith('fr')) {\n> 34 |       await expect(price).toHaveText('49,90 €');\n     |                           ^\n  35 |     } else {\n  36 |       await expect(price).toHaveText('$49.90');\n  37 |     }\n    at /Users/oumaimamemmiche/Downloads/EyesOnBug/examples/demo-e2e/e2e/checkout/checkout.spec.ts:34:27"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 1,
+                      "startTime": "2026-09-22T09:23:48.185Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "/Users/oumaimamemmiche/Downloads/EyesOnBug/examples/demo-e2e/test-results/checkout-checkout-Checkout-shows-prices-in-the-local-format-chromium-fr-retry1/test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "/Users/oumaimamemmiche/Downloads/EyesOnBug/examples/demo-e2e/test-results/checkout-checkout-Checkout-shows-prices-in-the-local-format-chromium-fr-retry1/video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "/Users/oumaimamemmiche/Downloads/EyesOnBug/examples/demo-e2e/test-results/checkout-checkout-Checkout-shows-prices-in-the-local-format-chromium-fr-retry1/error-context.md"
+                        },
+                        {
+                          "name": "trace",
+                          "contentType": "application/zip",
+                          "path": "/Users/oumaimamemmiche/Downloads/EyesOnBug/examples/demo-e2e/test-results/checkout-checkout-Checkout-shows-prices-in-the-local-format-chromium-fr-retry1/trace.zip"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "/Users/oumaimamemmiche/Downloads/EyesOnBug/examples/demo-e2e/e2e/checkout/checkout.spec.ts",
+                        "column": 27,
+                        "line": 34
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "67cdc8a4402314feb5d5-7fcd3386be88d8a529ab",
+              "file": "checkout/checkout.spec.ts",
+              "line": 29,
+              "column": 3
+            },
+            {
+              "title": "totals several items",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium-fr",
+                  "projectName": "chromium-fr",
+                  "results": [
+                    {
+                      "workerIndex": 7,
+                      "parallelIndex": 4,
+                      "status": "passed",
+                      "duration": 182,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-22T09:23:42.904Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "67cdc8a4402314feb5d5-1d187375fdc9c17e56ee",
+              "file": "checkout/checkout.spec.ts",
+              "line": 40,
+              "column": 3
+            },
+            {
+              "title": "supports gift wrapping",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "location": {
+                        "file": "/Users/oumaimamemmiche/Downloads/EyesOnBug/examples/demo-e2e/e2e/checkout/checkout.spec.ts",
+                        "line": 48,
+                        "column": 8
+                      }
+                    }
+                  ],
+                  "expectedStatus": "skipped",
+                  "projectId": "chromium-fr",
+                  "projectName": "chromium-fr",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-22T09:23:43.006Z",
+                      "annotations": [
+                        {
+                          "type": "skip",
+                          "location": {
+                            "file": "/Users/oumaimamemmiche/Downloads/EyesOnBug/examples/demo-e2e/e2e/checkout/checkout.spec.ts",
+                            "line": 48,
+                            "column": 8
+                          }
+                        }
+                      ],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "67cdc8a4402314feb5d5-6f621a45909494fc9af7",
+              "file": "checkout/checkout.spec.ts",
+              "line": 48,
+              "column": 8
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "search/search.spec.ts",
+      "file": "search/search.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Product search",
+          "file": "search/search.spec.ts",
+          "line": 3,
+          "column": 6,
+          "specs": [
+            {
+              "title": "lists every product by default",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium-en",
+                  "projectName": "chromium-en",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 331,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-22T09:23:41.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "8a3d3477a6f38a37b09e-a9c00f4888c88526311f",
+              "file": "search/search.spec.ts",
+              "line": 8,
+              "column": 3
+            },
+            {
+              "title": "filters by name",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium-en",
+                  "projectName": "chromium-en",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 342,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-22T09:23:41.787Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "8a3d3477a6f38a37b09e-b024e6da888dcf942229",
+              "file": "search/search.spec.ts",
+              "line": 13,
+              "column": 3
+            },
+            {
+              "title": "tells the user when nothing matches",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium-en",
+                  "projectName": "chromium-en",
+                  "results": [
+                    {
+                      "workerIndex": 3,
+                      "parallelIndex": 3,
+                      "status": "passed",
+                      "duration": 187,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-22T09:23:42.029Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "8a3d3477a6f38a37b09e-1d502017b74c6df4124d",
+              "file": "search/search.spec.ts",
+              "line": 20,
+              "column": 3
+            },
+            {
+              "title": "lists every product by default",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium-fr",
+                  "projectName": "chromium-fr",
+                  "results": [
+                    {
+                      "workerIndex": 9,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 131,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-22T09:23:43.009Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "8a3d3477a6f38a37b09e-cbf5c53f766016a23ac6",
+              "file": "search/search.spec.ts",
+              "line": 8,
+              "column": 3
+            },
+            {
+              "title": "filters by name",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium-fr",
+                  "projectName": "chromium-fr",
+                  "results": [
+                    {
+                      "workerIndex": 7,
+                      "parallelIndex": 4,
+                      "status": "passed",
+                      "duration": 139,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-22T09:23:43.096Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "8a3d3477a6f38a37b09e-e6ace984a393346eb196",
+              "file": "search/search.spec.ts",
+              "line": 13,
+              "column": 3
+            },
+            {
+              "title": "tells the user when nothing matches",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium-fr",
+                  "projectName": "chromium-fr",
+                  "results": [
+                    {
+                      "workerIndex": 9,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 118,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-22T09:23:43.145Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "8a3d3477a6f38a37b09e-83b68faf40a1033e013f",
+              "file": "search/search.spec.ts",
+              "line": 20,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-09-22T09:23:40.128Z",
+    "duration": 13366.381000000001,
+    "expected": 19,
+    "skipped": 2,
+    "unexpected": 1,
+    "flaky": 2
+  }
+}

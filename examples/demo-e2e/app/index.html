@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Acme Storefront</title>
+    <style>
+      :root { font-family: system-ui, sans-serif; }
+      body { margin: 0; padding: 24px; max-width: 900px; margin-inline: auto; }
+      h1 { font-size: 20px; }
+      .layout { display: grid; grid-template-columns: 1fr 280px; gap: 24px; align-items: start; }
+      .product { border: 1px solid #ddd; border-radius: 8px; padding: 12px; margin-bottom: 8px; }
+      .product h3 { margin: 0 0 4px; font-size: 15px; }
+      .cart { border: 1px solid #ddd; border-radius: 8px; padding: 12px; }
+      .row { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; }
+      button { cursor: pointer; padding: 4px 10px; border-radius: 6px; border: 1px solid #bbb; background: #fff; }
+      input { padding: 6px 8px; border: 1px solid #bbb; border-radius: 6px; width: 100%; }
+      .empty { color: #777; font-size: 14px; }
+    </style>
+  </head>
+  <body>
+    <h1>Acme Storefront</h1>
+
+    <label for="search" style="display:block;margin-bottom:8px">Search</label>
+    <input id="search" data-testid="search" placeholder="Search products" />
+
+    <div class="layout" style="margin-top:16px">
+      <section>
+        <div id="results" data-testid="results"></div>
+        <p id="no-results" data-testid="no-results" class="empty" hidden>No products found</p>
+      </section>
+
+      <aside class="cart">
+        <h2 style="font-size:15px;margin-top:0">Cart</h2>
+        <div id="cart-items" data-testid="cart-items"></div>
+        <p id="cart-empty" data-testid="cart-empty" class="empty">Your cart is empty</p>
+        <div class="row" style="margin-top:12px;font-weight:600">
+          <span>Total</span><span data-testid="cart-total">—</span>
+        </div>
+        <button data-testid="checkout" style="width:100%;margin-top:8px">Place order</button>
+        <p data-testid="confirmation" hidden style="color:#137a3c;font-size:14px">
+          Order confirmed
+        </p>
+      </aside>
+    </div>
+
+    <script>
+      const PRODUCTS = [
+        { id: 'p1', name: 'Running shoes', price: 49.9 },
+        { id: 'p2', name: 'Wool socks', price: 12.5 },
+        { id: 'p3', name: 'Rain jacket', price: 89.0 },
+        { id: 'p4', name: 'Trail backpack', price: 64.25 },
+      ];
+
+      const cart = new Map();
+
+      /*
+       * Deliberately naive currency formatting.
+       *
+       * It hardcodes the decimal separator as a full stop, which is correct for
+       * en-US and wrong for fr-FR (which uses a comma). This is the seeded bug
+       * the demo suite catches: the same test passes on one locale and fails on
+       * another, which is what makes the configuration matrix worth having.
+       *
+       * The correct implementation is the commented line below.
+       */
+      function formatPrice(value) {
+        const currency = navigator.language.startsWith('fr') ? '€' : '$';
+        return currency + value.toFixed(2);
+        // return new Intl.NumberFormat(navigator.language, {
+        //   style: 'currency', currency: currency === '€' ? 'EUR' : 'USD',
+        // }).format(value);
+      }
+
+      function renderResults(query = '') {
+        const term = query.trim().toLowerCase();
+        const matches = PRODUCTS.filter((p) => p.name.toLowerCase().includes(term));
+        const container = document.getElementById('results');
+        container.innerHTML = matches
+          .map(
+            (p) => `
+            <article class="product" data-testid="product-${p.id}">
+              <h3>${p.name}</h3>
+              <div class="row">
+                <span data-testid="price-${p.id}">${formatPrice(p.price)}</span>
+                <button data-testid="add-${p.id}">Add to cart</button>
+              </div>
+            </article>`,
+          )
+          .join('');
+        document.getElementById('no-results').hidden = matches.length > 0;
+
+        for (const p of matches) {
+          document
+            .querySelector(`[data-testid="add-${p.id}"]`)
+            .addEventListener('click', () => addToCart(p.id));
+        }
+      }
+
+      function addToCart(id) {
+        cart.set(id, (cart.get(id) ?? 0) + 1);
+        renderCart();
+      }
+
+      function setQuantity(id, quantity) {
+        if (quantity <= 0) cart.delete(id);
+        else cart.set(id, quantity);
+        renderCart();
+      }
+
+      function renderCart() {
+        const container = document.getElementById('cart-items');
+        const entries = [...cart.entries()];
+        document.getElementById('cart-empty').hidden = entries.length > 0;
+
+        container.innerHTML = entries
+          .map(([id, quantity]) => {
+            const product = PRODUCTS.find((p) => p.id === id);
+            return `
+              <div class="row" data-testid="cart-row-${id}">
+                <span>${product.name}</span>
+                <span>
+                  <button data-testid="dec-${id}">−</button>
+                  <span data-testid="qty-${id}">${quantity}</span>
+                  <button data-testid="inc-${id}">+</button>
+                </span>
+              </div>`;
+          })
+          .join('');
+
+        for (const [id, quantity] of entries) {
+          container
+            .querySelector(`[data-testid="inc-${id}"]`)
+            .addEventListener('click', () => setQuantity(id, quantity + 1));
+          container
+            .querySelector(`[data-testid="dec-${id}"]`)
+            .addEventListener('click', () => setQuantity(id, quantity - 1));
+        }
+
+        const total = entries.reduce((sum, [id, quantity]) => {
+          return sum + PRODUCTS.find((p) => p.id === id).price * quantity;
+        }, 0);
+        document.querySelector('[data-testid="cart-total"]').textContent =
+          entries.length === 0 ? '—' : formatPrice(total);
+      }
+
+      document.getElementById('search').addEventListener('input', (event) => {
+        renderResults(event.target.value);
+      });
+
+      document.querySelector('[data-testid="checkout"]').addEventListener('click', () => {
+        if (cart.size === 0) return;
+        // A short delay, so tests must actually wait rather than assume.
+        setTimeout(() => {
+          document.querySelector('[data-testid="confirmation"]').hidden = false;
+        }, 250);
+      });
+
+      renderResults();
+      renderCart();
+    </script>
+  </body>
+</html>

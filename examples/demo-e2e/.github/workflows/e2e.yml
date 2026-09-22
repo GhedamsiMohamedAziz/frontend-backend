@@ -1,0 +1,79 @@
+name: E2E
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Every weekday at 02:00 UTC.
+    - cron: '0 2 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment to test against
+        type: choice
+        options: [staging, production]
+        default: staging
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npx playwright install --with-deps chromium
+
+      - name: Run acceptance tests
+        # Do not fail the job here. The results still have to be uploaded — a
+        # red suite with no report is strictly worse than a red suite with one —
+        # and the quality gate is what decides whether the commit is blocked.
+        run: npx playwright test
+        continue-on-error: true
+
+      - name: Publish results to EyesOnBug
+        # `always()`: a cancelled or timed-out run is exactly when you most want
+        # to see how far the suite got.
+        if: always()
+        env:
+          EYESONBUG_URL: ${{ vars.EYESONBUG_URL }}
+          EYESONBUG_TOKEN: ${{ secrets.EYESONBUG_TOKEN }}
+          EYESONBUG_ENVIRONMENT: ${{ inputs.environment || 'staging' }}
+        run: npx eyesonbug upload
+        # Branch, commit, trigger and the CI run id are read from the standard
+        # GITHUB_* variables, so nothing else needs configuring.
+
+      - name: Fail the job if tests failed
+        if: always()
+        run: |
+          if [ ! -f playwright-report.json ]; then
+            echo "No test report was produced."
+            exit 1
+          fi
+          node -e "
+            const r = require('./playwright-report.json');
+            const failed = r.stats.unexpected ?? 0;
+            console.log(\`\${r.stats.expected} passed, \${failed} failed, \${r.stats.flaky} flaky\`);
+            process.exit(failed > 0 ? 1 : 0);
+          "
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report.json
+            test-results/
+          retention-days: 7

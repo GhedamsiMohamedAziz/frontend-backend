@@ -1,0 +1,17 @@
+{
+  "name": "acme-storefront-e2e",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Demo acceptance suite that reports to EyesOnBug",
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "test:ui": "playwright test --ui",
+    "report": "playwright show-report",
+    "upload": "eyesonbug upload"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.1",
+    "@eyesonbug/reporter": "file:../../packages/reporter"
+  }
+}
