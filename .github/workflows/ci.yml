@@ -1,0 +1,105 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '22'
+  PNPM_VERSION: '10.24.0'
+
+jobs:
+  verify:
+    name: Lint, typecheck, test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    # The isolation tests are the point of M0, and they cannot run against a
+    # mock: they assert that Postgres itself refuses cross-tenant access. So CI
+    # runs a real Postgres, Redis and MinIO.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: eyesonbug
+          POSTGRES_PASSWORD: eyesonbug
+          POSTGRES_DB: eyesonbug
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U eyesonbug -d eyesonbug"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+
+      redis:
+        image: redis:7
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+
+    env:
+      DATABASE_URL: postgres://eyesonbug_app:eyesonbug_app@localhost:5432/eyesonbug
+      DATABASE_MIGRATION_URL: postgres://eyesonbug:eyesonbug@localhost:5432/eyesonbug
+      REDIS_URL: redis://localhost:6379
+      SESSION_SECRET: ci-session-secret-0000000000000000000000000000
+      ALLOW_DEV_LOGIN: 'true'
+      NODE_ENV: development
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # The service container starts from a plain postgres image, so the role
+      # and function that docker-compose provides via docker/init must be
+      # applied explicitly here. Running them as a step rather than duplicating
+      # them keeps one source of truth for what "a ready database" means.
+      - name: Bootstrap database roles and extensions
+        run: psql "$DATABASE_MIGRATION_URL" -v ON_ERROR_STOP=1 -f packages/db/docker/init/01-init.sql
+
+      - run: pnpm build
+      - run: pnpm db:migrate
+      - run: pnpm db:seed
+
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+
+      - name: Check formatting
+        run: pnpm format:check
+
+  commits:
+    name: Conventional commits
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Lint commit messages in this PR
+        run: >-
+          pnpm exec commitlint
+          --from ${{ github.event.pull_request.base.sha }}
+          --to ${{ github.event.pull_request.head.sha }}
+          --verbose
