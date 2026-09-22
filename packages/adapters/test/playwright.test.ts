@@ -17,14 +17,10 @@ const fixture = JSON.parse(
   ),
 ) as unknown;
 
-const DEMO_ROOT = join(
-  dirname(fileURLToPath(import.meta.url)),
-  '..',
-  '..',
-  '..',
-  'examples',
-  'demo-e2e',
-);
+// The fixture was recorded on one machine, so its `config.rootDir` is that
+// machine's absolute `examples/demo-e2e/e2e`. Deriving the repo root from it
+// keeps the test hermetic instead of assuming the checkout path.
+const DEMO_ROOT = dirname((fixture as { config: { rootDir: string } }).config.rootDir);
 
 // `rootDir` is what the reporter passes: the repository root, so paths in the
 // report become repo-relative and a fingerprint means the same thing on every

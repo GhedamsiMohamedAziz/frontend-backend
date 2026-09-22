@@ -47,7 +47,6 @@ jobs:
       REDIS_URL: redis://localhost:6379
       SESSION_SECRET: ci-session-secret-0000000000000000000000000000
       ALLOW_DEV_LOGIN: 'true'
-      NODE_ENV: development
 
     steps:
       - uses: actions/checkout@v4
