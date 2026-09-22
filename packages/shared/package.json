@@ -29,6 +29,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "cron-parser": "^4.9.0",
     "zod": "^3.24.1"
   },
   "devDependencies": {

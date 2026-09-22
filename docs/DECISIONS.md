@@ -303,3 +303,31 @@ comes back later reinstalls, which re-sends the webhook. **Consequence:** a
 dev-login user (no GitHub identity) cannot link an installation, and the
 `github_installation.installation_id` unique index turns a second org's claim
 on an already-linked installation into a 409 rather than a takeover.
+
+### ADR-025 — Schedules fire from a Postgres tick, not from Redis
+
+**Status:** accepted (2026-09-22) · **Context:** a schedule launches a run
+template on a cron in an IANA zone. **Options:** (A) one BullMQ job scheduler
+per `schedule` row, so Redis holds the timetable and every create, edit and
+delete must sync it; (B) the worker ticks once a minute and claims every
+enabled row whose `next_run_at` has passed by advancing that timestamp in the
+same `UPDATE`, then dispatches exactly as a manual launch does. **Decision:**
+B. The schema was designed for it (`schedule_next_run_idx`,
+`next_run_at`/`last_run_at`), Postgres stays the only source of truth, a
+Redis flush loses nothing, and a disabled row simply stops matching. The
+claim-by-update makes two workers ticking at once safe without locks.
+**Consequence:** a schedule fires at most one minute late, and a failed
+dispatch is retried at the next cron firing rather than immediately.
+
+### ADR-026 — Quality gates are evaluated once, stored first, reported second
+
+**Status:** accepted (2026-09-22) · **Context:** a gate is a statement about a
+sealed run (ADR-006), and the spec wants it visible as a commit check.
+**Decision:** the worker evaluates the first enabled gate whose branches match
+when a run reaches a terminal status, from the run's own totals; M3 rules are
+`minPassRate` and `maxFailed`, with quarantined failures forgiven unless the
+project's `quarantineBlocksGate` says otherwise. The verdict is written to
+`run.gate` under an `IS NULL` guard, so concurrent passes evaluate once; the
+check run is created afterwards and its id stored, so a GitHub outage loses
+the report, not the verdict, and the next pass retries it. Rules that need
+history (`allowNewFailures`, flakiness) wait for the M4 stats (ADR-010).

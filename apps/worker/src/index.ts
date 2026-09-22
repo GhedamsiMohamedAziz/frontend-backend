@@ -1,12 +1,17 @@
 import { createServer } from 'node:http';
 import { Worker, type Job } from 'bullmq';
-import { SystemDb, TenantDb } from '@eyesonbug/db';
+import { SystemDb, TenantDb, schema } from '@eyesonbug/db';
+import { eq as eqRun } from 'drizzle-orm';
+const schemaRuns = schema.runs;
 import { config } from './config';
 import { logger } from './logger';
 import { QUEUE_NAMES, createQueue, createRedis } from './queues';
 import { runMaintenance, type MaintenanceJob } from './jobs/maintenance';
 import { processRun, RunLockedError, type IngestJob } from './jobs/ingest';
 import { processGithubEvent, type GitHubJob } from './jobs/github';
+import { evaluateGate } from './jobs/gates';
+import { tickSchedules } from './jobs/schedules';
+import { GitHubApp } from '@eyesonbug/shared/node';
 import { LivePublisher } from './live';
 
 /**
@@ -28,6 +33,16 @@ async function main(): Promise<void> {
   const tenant = new TenantDb({ url: cfg.DATABASE_URL, max: cfg.WORKER_CONCURRENCY + 2 });
 
   const maintenanceQueue = createQueue(QUEUE_NAMES.maintenance, connection);
+  // Null when the App is not configured: schedules then log and skip, and
+  // gates are evaluated but not reported to GitHub.
+  const github =
+    cfg.GITHUB_APP_ID && cfg.GITHUB_APP_PRIVATE_KEY
+      ? new GitHubApp({
+          appId: cfg.GITHUB_APP_ID,
+          privateKey: cfg.GITHUB_APP_PRIVATE_KEY,
+          apiUrl: cfg.GITHUB_API_URL,
+        })
+      : null;
   // A separate connection: publishing must not queue behind BullMQ's blocking
   // reads on the shared one.
   const live = new LivePublisher(createRedis());
@@ -45,6 +60,8 @@ async function main(): Promise<void> {
           'batch ingested',
         );
       }
+      // No-op until the run is sealed, then exactly once (idempotent on run.gate).
+      await evaluateGate(system, tenant, github, job.data.runId, cfg.WEB_URL);
     },
     { connection, concurrency: cfg.WORKER_CONCURRENCY },
   );
@@ -65,6 +82,17 @@ async function main(): Promise<void> {
       await processGithubEvent(system, tenant, job.data, {
         set: (key, value, ttl) => connection.set(key, value, 'EX', ttl),
       });
+      // A workflow_run delivery can be what seals a run that never reported.
+      if (job.data.event === 'workflow_run') {
+        const id = (job.data.payload as { workflow_run?: { id?: number } }).workflow_run?.id;
+        if (id) {
+          const rows = await system.db
+            .select({ id: schemaRuns.id })
+            .from(schemaRuns)
+            .where(eqRun(schemaRuns.githubWorkflowRunId, id));
+          for (const row of rows) await evaluateGate(system, tenant, github, row.id, cfg.WEB_URL);
+        }
+      }
     },
     { connection, concurrency: 4 },
   );
@@ -79,6 +107,11 @@ async function main(): Promise<void> {
   const maintenanceWorker = new Worker<MaintenanceJob>(
     QUEUE_NAMES.maintenance,
     async (job: Job<MaintenanceJob>) => {
+      if (job.data.task === 'tick-schedules') {
+        const result = await tickSchedules(system, tenant, github);
+        if (result.dispatched || result.skipped) logger.info(result, 'schedule tick');
+        return;
+      }
       await runMaintenance(system, job.data);
     },
     { connection, concurrency: 2 },
@@ -104,6 +137,11 @@ async function main(): Promise<void> {
     'stale-runs',
     { pattern: '*/10 * * * *' },
     { name: 'reap-stale-runs', data: { task: 'reap-stale-runs' } },
+  );
+  await maintenanceQueue.upsertJobScheduler(
+    'schedule-tick',
+    { pattern: '* * * * *' },
+    { name: 'tick-schedules', data: { task: 'tick-schedules' } },
   );
   await maintenanceQueue.upsertJobScheduler(
     'hourly-attachments',

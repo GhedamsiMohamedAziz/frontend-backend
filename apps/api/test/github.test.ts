@@ -162,6 +162,7 @@ describe('GitHub back office', () => {
     await system.db
       .delete(schema.workflowConfigs)
       .where(eq(schema.workflowConfigs.name, 'Nightly e2e'));
+    await system.db.delete(schema.qualityGates).where(eq(schema.qualityGates.name, 'Main gate'));
     await system.db
       .delete(schema.githubInstallations)
       .where(eq(schema.githubInstallations.installationId, INSTALLATION_ID));
@@ -445,6 +446,95 @@ describe('GitHub back office', () => {
       expect((await viewer.get(`${base}/workflow-configs`)).status).toBe(200);
       const response = await viewer.post(`${base}/workflow-configs/${configId}/dispatch`).send({});
       expect(response.status).toBe(403);
+    });
+  });
+
+  describe('schedules and quality gates', () => {
+    const base = '/v1/o/acme-retail/p/storefront';
+    let configId: string;
+
+    it('needs schedule:manage to create a schedule', async () => {
+      const admin = await login('demo@eyesonbug.dev');
+      const configs = await admin.get(`${base}/workflow-configs`);
+      configId = configs.body.find((c: { name: string }) => c.name === 'Nightly e2e').id;
+
+      const qa = await login('qa@eyesonbug.dev');
+      const response = await qa
+        .post(`${base}/schedules`)
+        .send({ name: 'Nightly', workflowConfigId: configId, cron: '0 2 * * *' });
+      expect(response.status).toBe(403);
+    });
+
+    it('rejects an invalid cron or timezone with a 400', async () => {
+      const admin = await login('demo@eyesonbug.dev');
+      const cron = await admin
+        .post(`${base}/schedules`)
+        .send({ name: 'Bad', workflowConfigId: configId, cron: '99 99 * * *' });
+      expect(cron.status).toBe(400);
+      const zone = await admin.post(`${base}/schedules`).send({
+        name: 'Bad',
+        workflowConfigId: configId,
+        cron: '0 2 * * *',
+        timezone: 'Mars/Olympus',
+      });
+      expect(zone.status).toBe(400);
+    });
+
+    it('creates a schedule with its next run computed in the given zone', async () => {
+      const admin = await login('demo@eyesonbug.dev');
+      const response = await admin.post(`${base}/schedules`).send({
+        name: 'Nightly',
+        workflowConfigId: configId,
+        cron: '0 2 * * *',
+        timezone: 'Europe/Paris',
+        inputs: { smoke: 'true' },
+      });
+      expect(response.status).toBe(201);
+      expect(new Date(response.body.nextRunAt).getTime()).toBeGreaterThan(Date.now());
+
+      const disabled = await admin
+        .patch(`${base}/schedules/${response.body.id}`)
+        .send({ enabled: false });
+      expect(disabled.body.nextRunAt).toBeNull();
+
+      const removed = await admin.delete(`${base}/schedules/${response.body.id}`);
+      expect(removed.status).toBe(204);
+    });
+
+    it('refuses a schedule for a template in another project', async () => {
+      const admin = await login('demo@eyesonbug.dev');
+      const response = await admin.post('/v1/o/acme-retail/p/mobile/schedules').send({
+        name: 'Elsewhere',
+        workflowConfigId: configId,
+        cron: '0 2 * * *',
+      });
+      expect([404, 403]).toContain(response.status);
+    });
+
+    it('manages quality gates', async () => {
+      const admin = await login('demo@eyesonbug.dev');
+      const created = await admin.post(`${base}/quality-gates`).send({
+        name: 'Main gate',
+        rules: { minPassRate: 0.95, maxFailed: 0 },
+        appliesToBranches: ['main', 'release/*'],
+      });
+      expect(created.status).toBe(201);
+
+      const bad = await admin
+        .post(`${base}/quality-gates`)
+        .send({ name: 'Nope', rules: { minPassRate: 2 } });
+      expect(bad.status).toBe(400);
+
+      const dup = await admin.post(`${base}/quality-gates`).send({ name: 'Main gate' });
+      expect(dup.status).toBe(409);
+
+      const viewer = await login('viewer@eyesonbug.dev');
+      const listed = await viewer.get(`${base}/quality-gates`);
+      expect(listed.body.map((g: { name: string }) => g.name)).toContain('Main gate');
+      const forbidden = await viewer
+        .patch(`${base}/quality-gates/${created.body.id}`)
+        .send({ enabled: false });
+      expect(forbidden.status).toBe(403);
     });
   });
 });

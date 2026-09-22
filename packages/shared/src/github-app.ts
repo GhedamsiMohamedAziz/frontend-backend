@@ -1,4 +1,5 @@
 import { createHmac, createSign, timingSafeEqual } from 'node:crypto';
+import { parseExpression } from 'cron-parser';
 import type { WorkflowInputs } from './schemas/github.js';
 
 /**
@@ -314,4 +315,13 @@ export function extractDispatchInputs(doc: unknown): WorkflowInputs | null {
     };
   }
   return result;
+}
+
+/**
+ * The next time a five-field cron fires in an IANA zone, strictly after
+ * `after`. Throws on an invalid expression or zone, with a message fit for a
+ * 400.
+ */
+export function nextCronRun(cron: string, timezone: string, after = new Date()): Date {
+  return parseExpression(cron, { tz: timezone, currentDate: after }).next().toDate();
 }

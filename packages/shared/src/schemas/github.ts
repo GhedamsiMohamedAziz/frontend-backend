@@ -109,3 +109,97 @@ export function resolveDispatchInputs(
   }
   return { inputs, errors };
 }
+
+// ─── Schedules ──────────────────────────────────────────────────────────────
+
+export const createScheduleSchema = z
+  .object({
+    name: nameSchema,
+    workflowConfigId: z.string().uuid(),
+    /** Five-field cron, validated with cron-parser by the API. */
+    cron: z.string().trim().min(9).max(100),
+    /** IANA zone, so "02:00 Europe/Paris" survives DST. */
+    timezone: z.string().trim().min(1).max(64).default('UTC'),
+    inputs: dispatchInputsSchema.default({}),
+    enabled: z.boolean().default(true),
+  })
+  .strict();
+export type CreateScheduleInput = z.infer<typeof createScheduleSchema>;
+
+export const updateScheduleSchema = createScheduleSchema.partial().strict();
+export type UpdateScheduleInput = z.infer<typeof updateScheduleSchema>;
+
+// ─── Quality gates ──────────────────────────────────────────────────────────
+
+/**
+ * M3 rules are computable from one run's totals. Rules that need history
+ * (`allowNewFailures`, flakiness-aware) arrive with the M4 stats (ADR-010).
+ */
+export const gateRulesSchema = z
+  .object({
+    /** Pass rate over non-skipped results; flaky counts as passed. */
+    minPassRate: z.number().min(0).max(1).optional(),
+    /** Failed + broken results allowed, after quarantine is applied. */
+    maxFailed: z.number().int().min(0).optional(),
+  })
+  .strict();
+export type GateRules = z.infer<typeof gateRulesSchema>;
+
+export const createQualityGateSchema = z
+  .object({
+    name: nameSchema,
+    rules: gateRulesSchema.default({}),
+    /** Exact branch names, or `*` for every branch. */
+    appliesToBranches: z.array(z.string().trim().min(1).max(200)).min(1).default(['main']),
+    enabled: z.boolean().default(true),
+  })
+  .strict();
+export type CreateQualityGateInput = z.infer<typeof createQualityGateSchema>;
+
+export const updateQualityGateSchema = createQualityGateSchema.partial().strict();
+export type UpdateQualityGateInput = z.infer<typeof updateQualityGateSchema>;
+
+export interface GateTotals {
+  total: number;
+  passed: number;
+  failed: number;
+  skipped: number;
+  broken: number;
+  flaky: number;
+}
+
+/** piggy: exact names or `*`; add glob matching when someone asks for release/*. */
+export function branchMatches(patterns: readonly string[], branch: string | null): boolean {
+  return patterns.includes('*') || (branch !== null && patterns.includes(branch));
+}
+
+/**
+ * Evaluate a gate against sealed totals. `quarantinedFailures` are failed or
+ * broken results whose test was quarantined at the time; they are forgiven
+ * unless the project says quarantine still blocks the gate.
+ */
+export function evaluateGateRules(
+  rules: GateRules,
+  totals: GateTotals,
+  quarantinedFailures: number,
+  runErrored: boolean,
+): { passed: boolean; reasons: string[] } {
+  const reasons: string[] = [];
+  if (runErrored) reasons.push('the run did not finish');
+
+  const failures = Math.max(0, totals.failed + totals.broken - quarantinedFailures);
+  if (rules.maxFailed !== undefined && failures > rules.maxFailed) {
+    reasons.push(`${failures} failed, at most ${rules.maxFailed} allowed`);
+  }
+
+  const considered = totals.total - totals.skipped;
+  if (rules.minPassRate !== undefined && considered > 0) {
+    const rate = (totals.passed + totals.flaky + quarantinedFailures) / considered;
+    if (rate < rules.minPassRate) {
+      reasons.push(
+        `pass rate ${(rate * 100).toFixed(1)}% is below ${(rules.minPassRate * 100).toFixed(1)}%`,
+      );
+    }
+  }
+  return { passed: reasons.length === 0, reasons };
+}

@@ -29,12 +29,13 @@ arrive rather than only at `complete`.
 **Implemented (M3, in progress):** `/v1/o/:org/github/*` (install URL, link /
 unlink installation, repos, workflows, parsed `workflow_dispatch` inputs),
 `/v1/webhooks/github` (`installation`, `installation_repositories`,
-`workflow_run`), `workflow-configs` CRUD + `dispatch`, `runs/:runId/rerun`,
-and `runs/:runId/cancel` now cancels the GitHub job too.
+`workflow_run`), `workflow-configs` CRUD + `dispatch`, `schedules` CRUD,
+`quality-gates` CRUD, `runs/:runId/rerun`, and `runs/:runId/cancel` now
+cancels the GitHub job too. Gates are reported as check runs by the worker.
 
-**Not yet implemented:** schedules, quality gates (rest of M3); metrics
-endpoints (M4); triage (M5). Everything else below is the agreed contract for
-those milestones.
+**Not yet implemented:** `notification-rules` and `retention` (M5 / ops);
+metrics endpoints (M4); triage (M5). Everything else below is the agreed
+contract for those milestones.
 
 ---
 

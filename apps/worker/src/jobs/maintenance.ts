@@ -6,7 +6,8 @@ export type MaintenanceJob =
   | { task: 'provision-partitions' }
   | { task: 'prune-sessions' }
   | { task: 'expire-attachments' }
-  | { task: 'reap-stale-runs' };
+  | { task: 'reap-stale-runs' }
+  | { task: 'tick-schedules' };
 
 /**
  * Keep partitions provisioned ahead of time.
